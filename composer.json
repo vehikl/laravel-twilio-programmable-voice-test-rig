@@ -1,0 +1,30 @@
+{
+    "name": "vehikl/laravel-twilio-programmable-voice-test-rig",
+    "description": "A laravel library for testing twilio programmable voice twiml flows",
+    "type": "library",
+    "require": {
+        "php": "^8.1",
+        "phpunit/phpunit": "^10.1"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Vehikl\\LaravelTwilioProgrammableVoiceTestRig\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Alex Barry",
+            "email": "a.barry@vehikl.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require-dev": {
+        "orchestra/testbench": "^8.13.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "kylekatarnls/update-helper": true
+        }
+    }
+}
