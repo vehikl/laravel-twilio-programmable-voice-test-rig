@@ -274,6 +274,11 @@ class ProgrammableVoiceRig
         return $this;
     }
 
+    public function getCallStatus(): string
+    {
+        return $this->twilioCallParameters['CallStatus'];
+    }
+
     private function isCompleted(): bool
     {
         return in_array($this->twilioCallParameters['CallStatus'], [
