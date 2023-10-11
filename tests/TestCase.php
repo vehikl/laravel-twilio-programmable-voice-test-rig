@@ -2,11 +2,14 @@
 
 namespace Tests;
 
-use Orchestra\Testbench\Concerns\WithWorkbench;
-use Orchestra\Testbench\Http\Kernel;
+use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
-class TestCase extends \PHPUnit\Framework\TestCase
+class TestCase extends OrchestraTestCase
 {
-    use WithWorkbench;
-    
+    protected function getPackageProviders($app)
+    {
+        return [
+            '\Workbench\App\Providers\TestAppServiceProvider'
+        ];
+    }
 }

@@ -1,17 +1,16 @@
-providers: []
+providers:
+  - Workbench\App\Providers\TestAppServiceProvider
 
-migrations:
-  - workbench/database/migrations
+migrations: []
 
-seeders:
-  - Workbench\Database\Seeders\DatabaseSeeder
+seeders: []
 
 workbench:
   start: '/'
   install: true
   welcome: true
   discovers:
-    web: false
+    web: true 
     api: false
     commands: false
   build: []

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use ReflectionClass;
 use SimpleXMLElement;
+use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Gather;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Hangup;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Record;
@@ -37,7 +38,7 @@ class ProgrammableVoiceRig
     private ?Request $request = null;
 
     /** @var array<int,string> */
-    private array $statusChange;
+    private array $statusChange = [];
 
     public function __construct(Application $application, string $direction = 'inbound', string $callStatus = 'ringing')
     {
@@ -182,8 +183,10 @@ class ProgrammableVoiceRig
             return;
         }
         $this->twilioCallParameters['CallStatus'] = $callStatus;
-        list($method, $url)  = $this->statusChange;
-        $this->handleRequest($method, $url, skipNavigation: true);
+        if (count($this->statusChange) === 2) {
+            list($method, $url)  = $this->statusChange;
+            $this->handleRequest($method, $url, skipNavigation: true);
+        }
     }
 
     public function endpoint(string $url, string $method = 'POST'): self
@@ -213,7 +216,13 @@ class ProgrammableVoiceRig
     private function handleTwiml(Response $response): void
     {
         $content = $response->getContent();
-        $xml = simplexml_load_string($content);
+        $xml = '';
+        try {
+            $xml = simplexml_load_string($content);
+        } catch (Throwable $e) {
+            var_dump($this->request->url(), (string)$e);
+            return;
+        }
         if (!$this->isTwiml($xml)) {
             return;
         }
