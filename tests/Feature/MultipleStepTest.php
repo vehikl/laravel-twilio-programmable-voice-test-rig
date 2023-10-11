@@ -28,15 +28,46 @@ class MultipleStepTest extends TestCase
             ->call()
             ->assert(function (Assert $assert) {
                 $assert
-                    // ->endpoint(route('multiple-step.record'))
-                    ->twiml('<Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'))
+                    ->twiml('<Say>Record your name</Say><Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'))
+                    ->endpoint(route('multiple-step.record'))
+                    ->callStatus('in-progress');
+            })
+            ->followTwiml()->assert(function (Assert $assert) {
+                $assert
+                    ->endpoint(route('multiple-step.thanks'))
+                    ->twiml('<Say>%s</Say><Hangup/>', 'Thank-you for recording your name')
+                    ->callStatus('in-progress');
+            })
+            ->followTwiml()->assert(function (Assert $assert) {
+                $assert->callStatus('completed');
+            });
+    }
+
+    /** @test */
+    public function itHandlesNoQueuedInput(): void
+    {
+        (new ProgrammableVoiceRig(
+            $this->app,
+            new TwimlApp(
+                voice: new TwimlAppConfiguration(
+                    requestUrl: route('multiple-step.record'),
+                ),
+            ),
+        ))
+            ->from(new PhoneNumber('15554443322'))
+            ->to(new PhoneNumber('12223334455'))
+            ->call()
+            ->assert(function (Assert $assert) {
+                $assert
+                    ->twiml('<Say>Record your name</Say><Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'))
+                    ->endpoint(route('multiple-step.record'))
+                    ->callStatus('in-progress');
+            })
+            ->followTwiml()->assert(function (Assert $assert) {
+                $assert
+                    ->endpoint(route('multiple-step.emptyRecordingRetry'))
+                    ->twiml('<Say>%s</Say><Redirect method="POST">%s</Redirect>', 'Oops, we couldn\'t hear you, try again', route('multiple-step.record'))
                     ->callStatus('in-progress');
             });
-            // ->followTwiml()->assert(function (Assert $assert) {
-            //     $assert
-            //         ->endpoint(route('multiple-step.thanks'))
-            //         ->twiml('<Say>%s</Say><Hangup/>', 'Thank-you for recording your name')
-            //         ->callStatus('completed');
-            // });
     }
 }
