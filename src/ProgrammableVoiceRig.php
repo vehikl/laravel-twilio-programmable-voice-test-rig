@@ -2,10 +2,11 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
-use PHPUnit\Framework\Assert;
+use Exception;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use PHPUnit\Framework\Assert as PHPUnitAssert;
 use ReflectionClass;
 use SimpleXMLElement;
 use Throwable;
@@ -30,19 +31,14 @@ class ProgrammableVoiceRig
     private ?Response $response = null;
     private array $inputQueue = [];
     private array $dialQueue = [];
-    private ?array $nextAction = null;
-    private ?string $currentUrl = null;
-
-    private Application $app;
 
     private ?Request $request = null;
 
     /** @var array<int,string> */
     private array $statusChange = [];
 
-    public function __construct(Application $application, string $direction = 'inbound', string $callStatus = 'ringing')
+    public function __construct(protected Application $app, protected TwimlApp $twimlApp, string $direction = 'inbound', string $callStatus = 'ringing')
     {
-        $this->app = $application;
         $this->twilioCallParameters = [
             'AccountSid' => sprintf('AC%s', fake()->uuid),
             'CallSid' => sprintf('CA%s', fake()->uuid),
@@ -70,7 +66,6 @@ class ProgrammableVoiceRig
         }
         return (new ReflectionClass($classRef))->newInstance();
     }
-
 
     public function from(PhoneNumber $phoneNumber): self
     {
@@ -135,7 +130,7 @@ class ProgrammableVoiceRig
         return array_shift($this->inputQueue);
     }
 
-    public function shiftDial(): ?array
+    public function shiftDial(): array
     {
         return array_shift($this->dialQueue) ?? [
             'DialCallStatus' => 'completed',
@@ -145,37 +140,21 @@ class ProgrammableVoiceRig
         ];
     }
     /**
-     * @param array<int,mixed> $data
-     */
-    public function setNextAction(string $method, string $url, array $data = []): void
-    {
-        if ($this->nextAction) {
-            return;
-        }
-        $this->nextAction = [$method, $url, $data];
-    }
-
-    /**
      * @param array<int,mixed> $extraData
      */
-    private function handleRequest(string $method, string $url, array $extraData = [], bool $skipNavigation = false): Response
+    private function handleRequest(string $url, string $method = 'POST', array $extraData = [], bool $skipNavigation = false): Response
     {
-        $body = [...$this->twilioCallParameters, ...$extraData];
-        $request = Request::create($url, $method, $body);
+        $parameters = [...$this->twilioCallParameters, ...$extraData];
+
+        $request = Request::create($url, $method, $parameters);
         $response = $this->app->handle($request);
+
         if (!$skipNavigation) {
-            $this->currentUrl = $request->url;
             $this->request = $request;
         }
         return $response;
     }
 
-
-    public function statusChangeEndpoint(string $url, string $method = 'POST'): self
-    {
-        $this->statusChange = [$method, $url];
-        return $this;
-    }
 
     public function setCallStatus(string $callStatus): void
     {
@@ -185,35 +164,64 @@ class ProgrammableVoiceRig
         $this->twilioCallParameters['CallStatus'] = $callStatus;
         if (count($this->statusChange) === 2) {
             list($method, $url)  = $this->statusChange;
-            $this->handleRequest($method, $url, skipNavigation: true);
+            $this->handleRequest($url, $method, skipNavigation: true);
         }
     }
 
-    public function endpoint(string $url, string $method = 'POST'): self
+    public function call(): self
     {
-        $this->setCallStatus('in-progress');
-        $this->setNextAction($method, $url);
-        return $this->next();
-    }
+        $voiceApp = $this->twimlApp->voice;
 
-    public function getCurrentUrl(): string
-    {
-        return $this->request?->fullUrl() ?? '';
-    }
-
-    public function next(): self
-    {
-        if (!$this->nextAction) {
+        if (!$voiceApp) {
+            PHPUnitAssert::fail('Unable to make a call, voice app not configured');
             return $this;
         }
-        list($method, $url, $data) = $this->nextAction;
-        $this->nextAction = null;
-        $this->response = $this->handleRequest($method, $url, $data);
-        $this->handleTwiml($this->response);
+
+        $this->setCallStatus('in-progress');
+
+        $this->response = $this->handleRequest($this->twimlApp->voice->requestUrl, $this->twimlApp->voice->requestMethod);
+
         return $this;
     }
 
-    private function handleTwiml(Response $response): void
+    public function assert(Callable $assertCallback): self
+    {
+        $assertCallback(new Assert($this));
+        return $this;
+    }
+
+    public function getRequest(): ?Request
+    {
+        return $this->request;
+    }
+
+    public function getResponse(): ?Response
+    {
+        return $this->response;
+    }
+
+    public function followTwiml(): self
+    {
+        $alreadyHandled = false;
+        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
+            if ($alreadyHandled) {
+                throw new Exception('Attempted to follow twiml more than once on the same response');
+            }
+
+            $this->response = $this->handleRequest($url, $method, $data);
+            $alreadyHandled = true;
+        });
+        return $this;
+    }
+
+    public function tap(Callable $callback): self
+    {
+        $callback($this->request, $this->response);
+
+        return $this;
+    }
+
+    private function handleTwiml(Response $response, Callable $nextAction): void
     {
         $content = $response->getContent();
         $xml = '';
@@ -229,7 +237,7 @@ class ProgrammableVoiceRig
 
         foreach($xml->children() as $tag) {
             $handler = $this->getTwimlHandler($tag->getName());
-            if ($handler?->handle($this, $tag)) {
+            if ($handler?->handle($this, $tag, $nextAction)) {
                 return;
             }
         }
@@ -242,68 +250,10 @@ class ProgrammableVoiceRig
         return $xml->getName() === 'Response';
     }
 
-    public function assertNextEndpoint(string $uri): self
-    {
-        $this->next();
-
-        $requestUrl = strpos($uri, '?') !== false
-            ? $this->request->fullUrl()
-            : $this->request->url();
-
-        Assert::assertEquals($uri, $requestUrl, "Twiml redirect to {$requestUrl} but you expected {$uri}");
-
-        return $this;
-    }
-
-    /**
-     * @param mixed $replacements
-     */
-    public function assertTwiml(string $formattedXML, ...$replacements): self
-    {
-        $normalized = sprintf(
-            "%s\n<Response>%s</Response>\n",
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            collect(explode("\n", sprintf($formattedXML, ...$replacements)))
-                ->map(fn ($line) => trim($line))
-                ->filter(fn ($line) => strlen($line) > 0)
-                ->join(""),
-        );
-        $replaceAmps = str_replace('&', '&amp;', $normalized);
-
-        Assert::assertEquals($replaceAmps, $this->response->getContent(), 'Expected twiml does not match actual');
-
-        return $this;
-    }
-
-    public function assertCallEnded(): self
-    {
-        $this->next();
-        $status = $this->twilioCallParameters['CallStatus'];
-        Assert::assertTrue($this->isCompleted(), "Call status is $status, which is not completed or a final status");
-        return $this;
-    }
 
     public function getCallStatus(): string
     {
         return $this->twilioCallParameters['CallStatus'];
-    }
-
-    private function isCompleted(): bool
-    {
-        return in_array($this->twilioCallParameters['CallStatus'], [
-            'completed',
-            'busy',
-            'no-answer',
-            'canceled',
-            'failed',
-        ]);
-    }
-
-    public function tap(Callable $callback): self
-    {
-        $callback($this->request, $this->response);
-
-        return $this;
     }
 
     public function getCallSid(): string
@@ -313,7 +263,7 @@ class ProgrammableVoiceRig
 
     public function twiml(): string
     {
-        return $this->request->getContent();
+        return $this->response->getContent();
         
     }
 }

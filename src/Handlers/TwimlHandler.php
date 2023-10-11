@@ -7,5 +7,5 @@ use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 interface TwimlHandler
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element): bool;
+    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool;
 }

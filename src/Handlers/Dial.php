@@ -3,15 +3,17 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use SimpleXMLElement;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Dial implements TwimlHandler
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element): bool
+    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
     {
         if (!isset($element['action'])) {
             return false;
         }
-        $programmableVoice->setNextAction($element['method'] ?? 'POST', $element['action'], $programmableVoice->shiftDial());
+        $dial = $programmableVoice->shiftDial();
+        $nextAction($element['action'], $element['method'] ?? 'POST', $dial);
         return true;
     }
 }

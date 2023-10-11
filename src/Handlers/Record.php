@@ -2,14 +2,18 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use Exception;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Record implements TwimlHandler
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element): bool
+    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
     {
-        $action = $element['action'] ?? $programmableVoice->currentUrl();
+        $action = $element['action'] ?? $programmableVoice->getRequest()?->fullUrl() ?? null;
+        if (!$action) {
+            throw new Exception('Unable to handle record, action and request are both missing');
+        }
         $method = strtoupper($element['method'] ?? 'post');
 
         $input = $programmableVoice->shiftInput();
@@ -17,11 +21,7 @@ class Record implements TwimlHandler
             return false;
         }
 
-        $programmableVoice->setNextAction(
-            $method,
-            $action,
-            $input,
-        );
+        $nextAction($action, $method, $input);
         return true;
     }
 }

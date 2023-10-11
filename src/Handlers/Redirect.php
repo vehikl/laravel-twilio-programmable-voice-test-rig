@@ -7,9 +7,9 @@ use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Redirect implements TwimlHandler
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element): bool
+    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
     {
-        $programmableVoice->setNextAction($element['method'] ?? 'POST', (string)$element);
+        $nextAction((string)$element, $element['method'] ?? 'POST');
         return true;
     }
 }
