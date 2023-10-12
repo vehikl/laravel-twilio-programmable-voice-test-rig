@@ -22,25 +22,21 @@ class MultipleStepTest extends TestCase
                 ),
             ),
         ))
-            ->from(new PhoneNumber('15554443322'))
-            ->to(new PhoneNumber('12223334455'))
             ->queueInput(recordingUrl: 'file.mp3', recordingDuration: 1)
-            ->call()
+            ->ring(from: '15554443322', to: '12223334455')
             ->assert(function (Assert $assert) {
                 $assert
                     ->twiml('<Say>Record your name</Say><Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'))
-                    ->endpoint(route('multiple-step.record'))
-                    ->callStatus('in-progress');
+                    ->endpoint(route('multiple-step.record'));
             })
-            ->followTwiml()->assert(function (Assert $assert) {
+            ->assertRedirectedTo(route('multiple-step.thanks'))
+            ->assert(function (Assert $assert) {
                 $assert
                     ->endpoint(route('multiple-step.thanks'))
-                    ->twiml('<Say>%s</Say><Hangup/>', 'Thank-you for recording your name')
-                    ->callStatus('in-progress');
+                    ->twiml('<Say>%s</Say><Hangup/>', 'Thank-you for recording your name');
             })
-            ->followTwiml()->assert(function (Assert $assert) {
-                $assert->callStatus('completed');
-            });
+            ->assertRedirectedTo('foo')
+            ->assertCallEnded();
     }
 
     /** @test */
@@ -54,9 +50,7 @@ class MultipleStepTest extends TestCase
                 ),
             ),
         ))
-            ->from(new PhoneNumber('15554443322'))
-            ->to(new PhoneNumber('12223334455'))
-            ->call()
+            ->ring(from: '15554443322', to: '12223334455')
             ->assert(function (Assert $assert) {
                 $assert
                     ->twiml('<Say>Record your name</Say><Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'))

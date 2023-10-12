@@ -3,7 +3,6 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
 use PHPUnit\Framework\Assert as PHPUnitAssert;
-use PHPUnit\TextUI\XmlConfiguration\PHPUnit;
 
 class Assert {
     public function __construct(public ProgrammableVoiceRig $rig) {}

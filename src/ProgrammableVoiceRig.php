@@ -67,29 +67,43 @@ class ProgrammableVoiceRig
         return (new ReflectionClass($classRef))->newInstance();
     }
 
-    public function from(PhoneNumber $phoneNumber): self
+    public function from(PhoneNumber|string $phoneNumber): self
     {
+        $wrapped = is_string($phoneNumber)
+            ? new PhoneNumber($phoneNumber)
+            : $phoneNumber;
+
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $phoneNumber->toParameters('From'),
+            $wrapped->toParameters('From'),
         );
         return $this;
     }
 
-    public function to(PhoneNumber $phoneNumber): self
+    public function to(PhoneNumber|string $phoneNumber): self
     {
+        $wrapped = is_string($phoneNumber)
+            ? new PhoneNumber($phoneNumber)
+            : $phoneNumber;
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $phoneNumber->toParameters('To'),
+            $wrapped->toParameters('To'),
         );
         return $this;
     }
 
-    public function forwardedFrom(PhoneNumber $phoneNumber): self
+    public function forwardedFrom(string|PhoneNumber|null $phoneNumber): self
     {
+        if ($phoneNumber === null) {
+            return $this;
+        }
+        $wrapped = is_string($phoneNumber)
+            ? new PhoneNumber($phoneNumber)
+            : $phoneNumber;
+
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $phoneNumber->toParameters('ForwardedFrom'),
+            $wrapped->toParameters('ForwardedFrom'),
         );
         return $this;
     }
@@ -168,8 +182,9 @@ class ProgrammableVoiceRig
         }
     }
 
-    public function call(): self
+    public function ring(string|PhoneNumber $from, string|PhoneNumber $to, string|PhoneNumber|null $forwardedFrom = null): self
     {
+        $this->from($from)->to($to)->forwardedFrom($forwardedFrom);
         $voiceApp = $this->twimlApp->voice;
 
         if (!$voiceApp) {
@@ -214,6 +229,44 @@ class ProgrammableVoiceRig
         return $this;
     }
 
+    public function assertRedirectedTo(string $expectedUri, string $expectedMethod = 'POST'): self
+    {
+        $alreadyHandled = false;
+        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod) {
+            if ($alreadyHandled) {
+                throw new Exception('Attempted to follow twiml more than once on the same response');
+            }
+
+            PHPUnitAssert::assertEquals([$expectedMethod, $expectedUri], [$method, $url]);
+
+            $this->response = $this->handleRequest($url, $method, $data);
+            $alreadyHandled = true;
+        });
+        if (!$alreadyHandled) {
+            PHPUnitAssert::fail("Expected redirect to $expectedMethod $expectedUri, but no action or redirect found in twiml");
+        }
+        return $this;
+    }
+
+    public function assertCallEnded(string $expectedStatus = 'completed'): self
+    {
+        $alreadyHandled = false;
+        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
+            if ($alreadyHandled) {
+                throw new Exception('Attempted to follow twiml more than once on the same response');
+            }
+
+            PHPUnitAssert::fail("Call did not complete, and was redirected to $method $url");
+
+            $this->response = $this->handleRequest($url, $method, $data);
+            $alreadyHandled = true;
+        });
+
+        PHPUnitAssert::assertEquals($expectedStatus, $this->getCallStatus());
+
+        return $this;
+    }
+
     public function tap(Callable $callback): self
     {
         $callback($this->request, $this->response);
@@ -228,6 +281,7 @@ class ProgrammableVoiceRig
         try {
             $xml = simplexml_load_string($content);
         } catch (Throwable $e) {
+            PHPUnitAssert::fail('Invalid Twiml response');
             var_dump($this->request->url(), (string)$e);
             return;
         }
