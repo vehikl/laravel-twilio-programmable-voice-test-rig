@@ -49,35 +49,9 @@ class Assert {
 
     public function callStatus(string $expectedCallStatus, string $message = ''): self
     {
-        
+
         PHPUnitAssert::assertEquals($expectedCallStatus, $this->rig->getCallStatus(), $message);
 
         return $this;
     }
-
-    public function endpoint(string $expectedUri, string $expectedMethod = 'POST'): self
-    {
-        $request = $this->rig->getRequest();
-        if (!$request) {
-            PHPUnitAssert::fail('No request to assert against');
-            return $this;
-        }
-        $uri = strpos($expectedUri, '?') !== false
-            ? $request->fullUrl()
-            : $request->url();
-
-        PHPUnitAssert::assertEquals($expectedUri, $uri, 'Uri does not match');
-        PHPUnitAssert::assertEquals($expectedMethod, $request->method(), 'Method does not match');
-
-        return $this;
-    }
-
-
-
-
-
-
-
-
-
 }

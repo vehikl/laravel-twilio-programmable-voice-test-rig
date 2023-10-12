@@ -76,6 +76,26 @@ public function itRecordsWithFallthrough(): void
 
 ### SMS Messaging
 
+
+## API
+
+### Assertions
+
+- [x] `assertRedirectedTo(uri, method)`
+- [x] `assertCallEnded()`
+- [x] `assertCallStatus(status)`
+- [ ] `assertValidTwiml()`
+- [ ] `assertTwimlEquals(twml, ...replacements)` (works like sprintf)
+- [ ] `assertTwimlContains(twml, ...replacements)` (works like sprintf)
+- [ ] `assertSaid(textFromASayTag)`
+- [ ] `assertPlayed(file)`
+- [ ] `assertDialed(phoneNumber)`
+- [ ] `assertPaused(numberOfSeconds)`
+- [ ] `assertRejected(reason)`
+- [ ] `assertStreamed(websocketUrl)`
+- [ ] `assertRecorded(action, method = 'POST')`
+- [ ] `assertGathered(action, method = 'POST')`
+
 ## Contributors
 
 - Alex

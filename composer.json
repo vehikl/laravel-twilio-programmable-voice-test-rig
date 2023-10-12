@@ -3,6 +3,7 @@
     "description": "A laravel library for testing twilio programmable voice twiml flows",
     "type": "library",
     "require": {
+        "ext-simplexml": "*",
         "php": "^8.1",
         "phpunit/phpunit": "^10.1"
     },
