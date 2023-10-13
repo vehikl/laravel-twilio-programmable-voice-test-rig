@@ -85,9 +85,10 @@ public function itRecordsWithFallthrough(): void
 - [x] `assertCallEnded()`
 - [x] `assertCallStatus(status)`
 - [ ] `assertValidTwiml()`
-- [ ] `assertTwimlEquals(twml, ...replacements)` (works like sprintf)
-- [ ] `assertTwimlContains(twml, ...replacements)` (works like sprintf)
-- [ ] `assertSaid(textFromASayTag)`
+- [x] `assertTwimlEquals(twml, ...replacements)` (works like sprintf)
+- [x] `assertTwimlContains(twml, ...replacements)` (works like sprintf)
+- [ ] `assertTwimlOrder([tag1Name, tag2Name])`
+- [x] `assertSaid(textFromASayTag)`
 - [ ] `assertPlayed(file)`
 - [ ] `assertDialed(phoneNumber)`
 - [ ] `assertPaused(numberOfSeconds)`

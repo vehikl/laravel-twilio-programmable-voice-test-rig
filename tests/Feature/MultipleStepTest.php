@@ -22,18 +22,14 @@ class MultipleStepTest extends TestCase
                 ),
             ),
         ))
-            ->queueInput(recordingUrl: 'file.mp3', recordingDuration: 1)
             ->ring(from: '15554443322', to: '12223334455')
-//            ->assertTwimlEquals('...full twiml...')
-//            ->assertTwimlContains('<Say>....</Say>')
-//            ->assertSaid('Thing')
-            ->assert(function (Assert $assert) {
-                $assert->twiml('<Say>Record your name</Say><Record action="%s"/><Redirect method="POST">%s</Redirect>', route('multiple-step.thanks'), route('multiple-step.emptyRecordingRetry'));
-            })
+            ->assertSaid('Record your name')
+            ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
+            ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
+            ->record(recordingUrl: 'file.mp3')
             ->assertRedirectedTo(route('multiple-step.thanks'))
-            ->assert(function (Assert $assert) {
-                $assert->twiml('<Say>%s</Say><Hangup/>', 'Thank-you for recording your name');
-            })
+            ->assertSaid('Thank-you for recording your name')
+            ->assertTwimlContains('<Hangup/>')
             ->assertCallEnded();
     }
 
@@ -49,15 +45,9 @@ class MultipleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
-            ->assertTwimlEquals(
-                <<<TWIML
-                <Say>Record your name</Say>
-                <Record action="%s"/>
-                <Redirect method="POST">%s</Redirect>
-TWIML,
-                route('multiple-step.thanks'),
-                route('multiple-step.emptyRecordingRetry')
-            )
+            ->assertSaid('Record your name')
+            ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
+            ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->assertRedirectedTo(route('multiple-step.emptyRecordingRetry'))
             ->assertSaid('Oops, we couldn\'t hear you, try again')
             ->assertRedirectedTo(route('multiple-step.record'))

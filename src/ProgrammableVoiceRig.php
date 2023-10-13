@@ -108,7 +108,11 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function queueInput(?string $recordingUrl = null, ?int $recordingDuration = null, ?string $digits = null): self
+    public function record(
+        ?string $recordingUrl = null,
+        ?int $recordingDuration = null,
+        ?string $digits = null,
+    ): self
     {
         $input = [];
         if ($recordingUrl !== null) {
@@ -121,6 +125,28 @@ class ProgrammableVoiceRig
             $input['Digits'] = $digits;
         }
         $this->inputQueue [] = $input;
+
+        return $this;
+    }
+
+    public function gather(
+        ?string $digits = null,
+        ?string $speechResult = null,
+        ?string $confidence = null
+    ): self
+    {
+        $input = [];
+        if ($recordingUrl !== null) {
+            $input['RecordingUrl'] = $recordingUrl;
+        }
+        if ($recordingDuration !== null) {
+            $input['RecordingDuration'] = $recordingDuration;
+        }
+        if ($digits !== null) {
+            $input['Digits'] = $digits;
+        }
+        $this->inputQueue [] = $input;
+
         return $this;
     }
 
