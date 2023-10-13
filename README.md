@@ -87,11 +87,11 @@ public function itRecordsWithFallthrough(): void
 - [ ] `assertValidTwiml()`
 - [x] `assertTwimlEquals(twml, ...replacements)` (works like sprintf)
 - [x] `assertTwimlContains(twml, ...replacements)` (works like sprintf)
-- [ ] `assertTwimlOrder([tag1Name, tag2Name])`
+- [x] `assertTwimlOrder([tag1Name, tag2Name])`
 - [x] `assertSaid(textFromASayTag)`
-- [ ] `assertPlayed(file)`
+- [x] `assertPlayed(file)`
 - [ ] `assertDialed(phoneNumber)`
-- [ ] `assertPaused(numberOfSeconds)`
+- [x] `assertPaused(numberOfSeconds)`
 - [ ] `assertRejected(reason)`
 - [ ] `assertStreamed(websocketUrl)`
 - [ ] `assertRecorded(action, method = 'POST')`
@@ -104,5 +104,7 @@ public function itRecordsWithFallthrough(): void
 - Brad
 - Hunter
 - Ian
+- John I
+- John M
 - Jeff C
 - Justin S

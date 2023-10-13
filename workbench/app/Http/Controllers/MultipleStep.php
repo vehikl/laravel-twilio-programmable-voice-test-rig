@@ -36,6 +36,8 @@ class MultipleStep extends Controller
 
     public function emptyRecordingRetry(Request $request): VoiceResponse
     {
+        $this->voiceResponse->play('sad-trombone.mp3');
+        $this->voiceResponse->pause(['length' => 2]);
         $this->voiceResponse->say('Oops, we couldn\'t hear you, try again');
         $this->voiceResponse->redirect(route('multiple-step.record'), ['method' => 'POST']);
         

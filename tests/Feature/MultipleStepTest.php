@@ -23,6 +23,7 @@ class MultipleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
+            ->assertTwimlOrder(['Say', 'Record', 'Redirect'])
             ->assertSaid('Record your name')
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
@@ -49,6 +50,8 @@ class MultipleStepTest extends TestCase
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->assertRedirectedTo(route('multiple-step.emptyRecordingRetry'))
+            ->assertPlayed('sad-trombone.mp3')
+            ->assertPaused(2)
             ->assertSaid('Oops, we couldn\'t hear you, try again')
             ->assertRedirectedTo(route('multiple-step.record'))
             ->assertCallStatus(CallStatus::in_progress);

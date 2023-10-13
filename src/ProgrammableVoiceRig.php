@@ -135,17 +135,17 @@ class ProgrammableVoiceRig
         ?string $confidence = null
     ): self
     {
-        $input = [];
-        if ($recordingUrl !== null) {
-            $input['RecordingUrl'] = $recordingUrl;
-        }
-        if ($recordingDuration !== null) {
-            $input['RecordingDuration'] = $recordingDuration;
-        }
-        if ($digits !== null) {
-            $input['Digits'] = $digits;
-        }
-        $this->inputQueue [] = $input;
+//        $input = [];
+//        if ($recordingUrl !== null) {
+//            $input['RecordingUrl'] = $recordingUrl;
+//        }
+//        if ($recordingDuration !== null) {
+//            $input['RecordingDuration'] = $recordingDuration;
+//        }
+//        if ($digits !== null) {
+//            $input['Digits'] = $digits;
+//        }
+//        $this->inputQueue [] = $input;
 
         return $this;
     }
@@ -386,6 +386,41 @@ class ProgrammableVoiceRig
     public function assertSaid(string $text): self
     {
         PHPUnitAssert::assertStringContainsString("<Say>$text</Say>", $this->twiml());
+
+        return $this;
+    }
+
+    public function assertTwimlOrder(array $tags): self
+    {
+        $xml = null;
+        try {
+            $xml = simplexml_load_string($this->response->getContent());
+        } catch (Throwable $e) {
+            PHPUnitAssert::fail('Invalid Twiml response');
+        }
+        if (!$this->isTwiml($xml)) {
+            return $this;
+        }
+
+        $actualTagOrder = [];
+        foreach($xml->children() as $tag) {
+            $actualTagOrder [] = $tag->getName();
+        }
+        PHPUnitAssert::assertEquals($tags, $actualTagOrder);
+
+        return $this;
+    }
+
+    public function assertPlayed($file): self
+    {
+        PHPUnitAssert::assertStringContainsString("<Play>$file</Play>", $this->twiml());
+
+        return $this;
+    }
+
+    public function assertPaused($seconds): self
+    {
+        PHPUnitAssert::assertStringContainsString("<Pause length=\"$seconds\"/>", $this->twiml());
 
         return $this;
     }
