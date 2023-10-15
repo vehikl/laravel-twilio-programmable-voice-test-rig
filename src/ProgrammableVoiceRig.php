@@ -104,7 +104,7 @@ class ProgrammableVoiceRig
     {
         return $this->pushInput('dial', [
             'DialCallStatus' => $callStatus->value,
-            'DialCallSid' => $callSid ?? 'CA' . fake()->uuid,
+            'DialCallSid' => $callSid ?? ('CA' . fake()->uuid),
             'DialCallDuration' => $duration,
             'DialBridged' => $bridged,
             'RecordingUrl' => $recordingUrl,
@@ -143,27 +143,27 @@ class ProgrammableVoiceRig
         return (new ReflectionClass($classRef))->newInstance();
     }
 
-    public function from(PhoneNumber|string $phoneNumber): self
+    private function wrapPhoneNumber(PhoneNumber|string $phoneNumber): PhoneNumber
     {
-        $wrapped = is_string($phoneNumber)
+        return is_string($phoneNumber)
             ? new PhoneNumber($phoneNumber)
             : $phoneNumber;
+    }
 
+    public function from(PhoneNumber|string $phoneNumber): self
+    {
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $wrapped->toParameters('From'),
+            $this->wrapPhoneNumber($phoneNumber)->toParameters('From'),
         );
         return $this;
     }
 
     public function to(PhoneNumber|string $phoneNumber): self
     {
-        $wrapped = is_string($phoneNumber)
-            ? new PhoneNumber($phoneNumber)
-            : $phoneNumber;
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $wrapped->toParameters('To'),
+            $this->wrapPhoneNumber($phoneNumber)->toParameters('To'),
         );
         return $this;
     }
@@ -173,13 +173,10 @@ class ProgrammableVoiceRig
         if ($phoneNumber === null) {
             return $this;
         }
-        $wrapped = is_string($phoneNumber)
-            ? new PhoneNumber($phoneNumber)
-            : $phoneNumber;
 
         $this->twilioCallParameters = array_merge(
             $this->twilioCallParameters,
-            $wrapped->toParameters('ForwardedFrom'),
+            $this->wrapPhoneNumber($phoneNumber)->toParameters('ForwardedFrom'),
         );
         return $this;
     }
