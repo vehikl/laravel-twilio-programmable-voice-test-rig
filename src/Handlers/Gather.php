@@ -6,23 +6,36 @@ use Exception;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class Gather implements TwimlHandler
+class Gather extends TwimlElement
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
+    protected ?array $gather = null;
+    protected ?string $actionUri = null;
+
+    public function __construct(ProgrammableVoiceRig $rig, SimpleXMLElement $element, ?TwimlElement $parent = null)
     {
-        $action = $element['action'] ?? $programmableVoice->getRequest()?->fullUrl() ?? null;
-        if (!$action) {
+        parent::__construct($rig, $element, $parent);
+        $this->actionUri = $element['action'] ?? $rig->request?->fullUrl() ?? null;
+    }
+
+    public function isActionable(): bool
+    {
+        return true;
+    }
+
+    public function runAction(Callable $nextAction): bool
+    {
+        if (!$this->actionUri) {
             throw new Exception('Unable to handle gather, action and request are both missing');
         }
+        $method = strtoupper($this->element['method'] ?? 'POST');
 
-        $method = strtoupper($element['method'] ?? 'POST');
+        $input = $this->rig->consumeInput('gather');
 
-        $input = $programmableVoice->consumeInput('gather');
-        if (($element['actionOnEmptyResult'] ?? 'false') === 'false' || !$input) {
+        if (($this->element['actionOnEmptyResult'] ?? 'false') === 'false' || !$input) {
             return false;
         }
 
-        $nextAction($action, $method, $input ?? []);
+        $nextAction('Gather', $this->actionUri, $method, $input ?? []);
         return true;
     }
 }

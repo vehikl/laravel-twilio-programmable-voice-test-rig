@@ -2,14 +2,15 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use SimpleXMLElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
-
-class Hangup implements TwimlHandler
+class Hangup extends TwimlElement
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
+    public function isActionable(): bool
     {
-        $programmableVoice->setCallStatus('completed');
+        return true;
+    }
+    public function runAction(Callable $nextAction): bool
+    {
+        $this->rig->setCallStatus('completed');
         return true;
     }
 }

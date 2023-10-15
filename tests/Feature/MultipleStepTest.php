@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Assert;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlApp;
@@ -12,7 +11,7 @@ use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlAppConfiguration;
 class MultipleStepTest extends TestCase
 {
     /** @test */
-    public function itHandlesAMultiStepFlow(): void
+    public function itFollowsRecordActionWhenRecordingPresent(): void
     {
         (new ProgrammableVoiceRig(
             $this->app,
@@ -28,14 +27,14 @@ class MultipleStepTest extends TestCase
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->record(recordingUrl: 'file.mp3', recordingDuration: 5)
-            ->assertRedirectedTo(route('multiple-step.thanks'))
+            ->assertRedirectedTo(route('multiple-step.thanks'), byTwimlTag: 'Record')
             ->assertSaid('Thank-you for recording your name')
             ->assertTwimlContains('<Hangup/>')
             ->assertCallEnded();
     }
 
     /** @test */
-    public function itHandlesNoQueuedInput(): void
+    public function itSkipsRecordingTwimlWhenNoRecordingGiven(): void
     {
         (new ProgrammableVoiceRig(
             $this->app,

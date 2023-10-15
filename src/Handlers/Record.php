@@ -6,22 +6,34 @@ use Exception;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class Record implements TwimlHandler
+class Record extends TwimlElement
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
+    protected ?string $actionUri;
+
+    public function __construct(ProgrammableVoiceRig $rig, SimpleXMLElement $element, ?TwimlElement $parent = null)
     {
-        $action = $element['action'] ?? $programmableVoice->getRequest()?->fullUrl() ?? null;
-        if (!$action) {
+        parent::__construct($rig, $element, $parent);
+        $this->actionUri = $element['action'] ?? $rig->request?->fullUrl() ?? null;
+    }
+
+    public function isActionable(): bool
+    {
+        return true;
+    }
+
+    public function runAction(Callable $nextAction): bool
+    {
+        if (!$this->actionUri) {
             throw new Exception('Unable to handle record, action and request are both missing');
         }
-        $method = strtoupper($element['method'] ?? 'post');
-
-        $input = $programmableVoice->consumeInput('record');
+        $input = $this->rig->consumeInput('record');
         if (!$input) {
             return false;
         }
 
-        $nextAction($action, $method, $input);
+        $method = strtoupper($this->element['method'] ?? 'post');
+
+        $nextAction('Record', $this->actionUri, $method, $input);
         return true;
     }
 }

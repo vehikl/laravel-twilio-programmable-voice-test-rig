@@ -10,34 +10,25 @@ use PHPUnit\Framework\Assert as PHPUnitAssert;
 use ReflectionClass;
 use SimpleXMLElement;
 use Throwable;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Gather;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Hangup;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Record;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Redirect;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlHandler;
 
 class ProgrammableVoiceRig
 {
-    const TWIML_HANDLERS = [
-        'Redirect' => Redirect::class,
-        'Record' => Record::class,
-        'Gather' => Gather::class,
-        'Hangup' => Hangup::class,
-    ];
-
     private array $customTwimlHandlers = [];
 
-    private array $twilioCallParameters = [];
+    protected array $twilioCallParameters = [];
 
-    private ?Request $request = null;
-    private ?Response $response = null;
+    protected ?Request $request = null;
+    protected ?Response $response = null;
 
-    private array $inputs = [
+    protected array $inputs = [
         'record' => [],
         'gather' => [],
         'dial' => [],
     ];
 
+    protected array $actionableElements = [];
 
     public function __construct(protected Application $app, protected TwimlApp $twimlApp, string $direction = 'inbound', CallStatus $callStatus = CallStatus::ringing)
     {
@@ -119,6 +110,15 @@ class ProgrammableVoiceRig
 
         return array_shift($this->inputs[$type]);
     }
+
+    public function peekInput(string $type): ?array
+    {
+        if (!isset($this->inputs[$type])) {
+            throw new Exception("ProgrammableVoiceRig does not support $type input");
+        }
+
+        return $this->inputs[$type][0] ?? null;
+    }
     
 
     public function setCustomTwimlHandler(string $tag, ?string $classReference): self
@@ -129,18 +129,6 @@ class ProgrammableVoiceRig
             $this->customTwimlHandlers[$tag] = $classReference;
         }
         return $this;
-    }
-
-    /**
-     * @throws \ReflectionException
-     */
-    private function getTwimlHandler(string $tag): ?TwimlHandler
-    {
-        $classRef = $this->customTwimlHandlers[$tag] ?? self::TWIML_HANDLERS[$tag] ?? null;
-        if (!$classRef) {
-            return null;
-        }
-        return (new ReflectionClass($classRef))->newInstance();
     }
 
     private function wrapPhoneNumber(PhoneNumber|string $phoneNumber): PhoneNumber
@@ -195,7 +183,10 @@ class ProgrammableVoiceRig
 
         if (!$skipNavigation) {
             $this->request = $request;
+            $this->response = $response;
+            $this->parseTwiml($response->getContent());
         }
+
         return $response;
     }
 
@@ -243,52 +234,6 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function getRequest(): ?Request
-    {
-        return $this->request;
-    }
-
-    public function getResponse(): ?Response
-    {
-        return $this->response;
-    }
-
-    public function assertRedirectedTo(string $expectedUri, string $expectedMethod = 'POST'): self
-    {
-        $alreadyHandled = false;
-        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod) {
-            if ($alreadyHandled) {
-                throw new Exception('Attempted to follow twiml more than once on the same response');
-            }
-
-            PHPUnitAssert::assertEquals([$expectedMethod, $expectedUri], [$method, $url]);
-
-            $this->response = $this->handleRequest($url, $method, $data);
-            $alreadyHandled = true;
-        });
-        if (!$alreadyHandled) {
-            PHPUnitAssert::fail("Expected redirect to $expectedMethod $expectedUri, but no action or redirect found in twiml");
-        }
-        return $this;
-    }
-
-    public function assertCallEnded(): self
-    {
-        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
-            PHPUnitAssert::fail("Call did not complete, and was redirected to $method $url");
-        });
-
-        PHPUnitAssert::assertContains($this->getCallStatus(), [
-            CallStatus::busy,
-            CallStatus::failed,
-            CallStatus::canceled,
-            CallStatus::completed,
-            CallStatus::no_answer
-        ]);
-
-        return $this;
-    }
-
     public function tap(Callable $callback): self
     {
         $callback($this->request, $this->response);
@@ -296,12 +241,13 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    private function handleTwiml(Response $response, Callable $nextAction): void
+    private function parseTwiml(string $twiml): void
     {
-        $content = $response->getContent();
+        $this->actionableElements = [];
+
         $xml = '';
         try {
-            $xml = simplexml_load_string($content);
+            $xml = simplexml_load_string($twiml);
         } catch (Throwable $e) {
             PHPUnitAssert::fail('Invalid Twiml response');
         }
@@ -310,12 +256,20 @@ class ProgrammableVoiceRig
         }
 
         foreach($xml->children() as $tag) {
-            $handler = $this->getTwimlHandler($tag->getName());
-            if ($handler?->handle($this, $tag, $nextAction)) {
+            $element = TwimlElement::fromElement($this, $tag, null, $this->customTwimlHandlers);
+            if ($element->isActionable()) {
+                $this->actionableElements [] = $element;
+            }
+        }
+    }
+
+    private function handleTwiml(Response $response, Callable $nextAction): void
+    {
+        foreach ($this->actionableElements as $actionable) {
+            if ($actionable->runAction($nextAction)) {
                 return;
             }
         }
-
         $this->setCallStatus('completed');
     }
 
@@ -429,6 +383,45 @@ class ProgrammableVoiceRig
     public function assertPaused($seconds): self
     {
         PHPUnitAssert::assertStringContainsString("<Pause length=\"$seconds\"/>", $this->twiml());
+
+        return $this;
+    }
+
+    public function assertRedirectedTo(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
+    {
+        $alreadyHandled = false;
+        $this->handleTwiml($this->response, function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
+            if ($alreadyHandled) {
+                throw new Exception('Attempted to follow twiml more than once on the same response');
+            }
+
+            PHPUnitAssert::assertEquals([$expectedMethod, $expectedUri], [$method, $url]);
+            if ($byTwimlTag) {
+                PHPUnitAssert::assertEquals($byTwimlTag, $tag);
+            }
+
+            $this->response = $this->handleRequest($url, $method, $data);
+            $alreadyHandled = true;
+        });
+        if (!$alreadyHandled) {
+            PHPUnitAssert::fail("Expected redirect to $expectedMethod $expectedUri, but no action or redirect found in twiml");
+        }
+        return $this;
+    }
+
+    public function assertCallEnded(): self
+    {
+        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
+            PHPUnitAssert::fail("Call did not complete, and was redirected to $method $url");
+        });
+
+        PHPUnitAssert::assertContains($this->getCallStatus(), [
+            CallStatus::busy,
+            CallStatus::failed,
+            CallStatus::canceled,
+            CallStatus::completed,
+            CallStatus::no_answer
+        ]);
 
         return $this;
     }

@@ -2,21 +2,25 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use SimpleXMLElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
-
-class Dial implements TwimlHandler
+class Dial extends TwimlElement
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
+    public function isActionable(): bool
     {
-        if (!isset($element['action'])) {
+        return true;
+    }
+
+    public function runAction(Callable $nextAction): bool
+    {
+        if (!isset($this->element['action'])) {
             return false;
         }
-        $dial = $programmableVoice->consumeInput('dial');
-        if (!$dial) {
+
+        $input = $this->rig->consumeInput('dial');
+        if (!$input) {
             return false;
         }
-        $nextAction($element['action'], $element['method'] ?? 'POST', $dial);
+
+        $nextAction('Dial', $this->element['action'], $this->element['method'] ?? 'POST', $input);
         return true;
     }
 }

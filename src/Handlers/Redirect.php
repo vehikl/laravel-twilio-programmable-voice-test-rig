@@ -2,14 +2,16 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use SimpleXMLElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
-
-class Redirect implements TwimlHandler
+class Redirect extends TwimlElement
 {
-    public function handle(ProgrammableVoiceRig $programmableVoice, SimpleXMLElement $element, Callable $nextAction): bool
+    public function isActionable(): bool
     {
-        $nextAction((string)$element, $element['method'] ?? 'POST');
+        return true;
+    }
+
+    public function runAction(Callable $nextAction): bool
+    {
+        $nextAction('Redirect', (string)$this->element, $this->element['method'] ?? 'POST');
         return true;
     }
 }
