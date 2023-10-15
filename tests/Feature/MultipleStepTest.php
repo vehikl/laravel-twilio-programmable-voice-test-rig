@@ -27,7 +27,7 @@ class MultipleStepTest extends TestCase
             ->assertSaid('Record your name')
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
-            ->record(recordingUrl: 'file.mp3')
+            ->record(recordingUrl: 'file.mp3', recordingDuration: 5)
             ->assertRedirectedTo(route('multiple-step.thanks'))
             ->assertSaid('Thank-you for recording your name')
             ->assertTwimlContains('<Hangup/>')

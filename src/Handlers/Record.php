@@ -16,7 +16,7 @@ class Record implements TwimlHandler
         }
         $method = strtoupper($element['method'] ?? 'post');
 
-        $input = $programmableVoice->shiftInput();
+        $input = $programmableVoice->consumeInput('record');
         if (!$input) {
             return false;
         }

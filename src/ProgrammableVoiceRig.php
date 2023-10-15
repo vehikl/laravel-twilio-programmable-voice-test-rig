@@ -28,11 +28,16 @@ class ProgrammableVoiceRig
     private array $customTwimlHandlers = [];
 
     private array $twilioCallParameters = [];
-    private ?Response $response = null;
-    private array $inputQueue = [];
-    private array $dialQueue = [];
 
     private ?Request $request = null;
+    private ?Response $response = null;
+
+    private array $inputs = [
+        'record' => [],
+        'gather' => [],
+        'dial' => [],
+    ];
+
 
     public function __construct(protected Application $app, protected TwimlApp $twimlApp, string $direction = 'inbound', CallStatus $callStatus = CallStatus::ringing)
     {
@@ -44,6 +49,77 @@ class ProgrammableVoiceRig
             'Direction' => $direction,
         ];
     }
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function pushInput(string $type, array $payload): self
+    {
+        if (!isset($this->inputs[$type])) {
+            throw new Exception("ProgrammableVoiceRig does not support $type input");
+        }
+
+        $this->inputs[$type] [] = array_filter(
+            $payload,
+            fn ($value) => $value !== null,
+        );
+
+        return $this;
+    }
+
+    public function record(
+        string $recordingUrl,
+        int $recordingDuration,
+        ?string $digits = null,
+    ): self
+    {
+        return $this->pushInput('record', [
+            'RecordingUrl' => $recordingUrl,
+            'RecordingDuration' => $recordingDuration,
+            'Digits' => $digits
+        ]);
+    }
+
+    public function gatherDigits(
+        string $digits,
+    ): self
+    {
+        return $this->pushInput('gather', ['Digits' => $digits]);
+    }
+
+    public function gatherDtmf(string $speechResult, float $confidence = 1.0): self
+    {
+        return $this->pushInput('gather', [
+            'SpeechResult' => $speechResult,
+            'Confidence' => $confidence,
+        ]);
+    }
+
+    public function dial(
+        CallStatus $callStatus,
+        ?string $callSid = null,
+        int $duration = 60,
+        bool $bridged = true,
+        ?string $recordingUrl = null,
+    ): self
+    {
+        return $this->pushInput('dial', [
+            'DialCallStatus' => $callStatus->value,
+            'DialCallSid' => $callSid ?? 'CA' . fake()->uuid,
+            'DialCallDuration' => $duration,
+            'DialBridged' => $bridged,
+            'RecordingUrl' => $recordingUrl,
+        ]);
+    }
+
+    public function consumeInput(string $type): ?array
+    {
+        if (!isset($this->inputs[$type])) {
+            throw new Exception("ProgrammableVoiceRig does not support $type input");
+        }
+
+        return array_shift($this->inputs[$type]);
+    }
+    
 
     public function setCustomTwimlHandler(string $tag, ?string $classReference): self
     {
@@ -108,77 +184,6 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function record(
-        ?string $recordingUrl = null,
-        ?int $recordingDuration = null,
-        ?string $digits = null,
-    ): self
-    {
-        $input = [];
-        if ($recordingUrl !== null) {
-            $input['RecordingUrl'] = $recordingUrl;
-        }
-        if ($recordingDuration !== null) {
-            $input['RecordingDuration'] = $recordingDuration;
-        }
-        if ($digits !== null) {
-            $input['Digits'] = $digits;
-        }
-        $this->inputQueue [] = $input;
-
-        return $this;
-    }
-
-    public function gather(
-        ?string $digits = null,
-        ?string $speechResult = null,
-        ?string $confidence = null
-    ): self
-    {
-//        $input = [];
-//        if ($recordingUrl !== null) {
-//            $input['RecordingUrl'] = $recordingUrl;
-//        }
-//        if ($recordingDuration !== null) {
-//            $input['RecordingDuration'] = $recordingDuration;
-//        }
-//        if ($digits !== null) {
-//            $input['Digits'] = $digits;
-//        }
-//        $this->inputQueue [] = $input;
-
-        return $this;
-    }
-
-    public function queueDial(string $dialCallStatus = 'completed', ?string $dialCallSid = null, int $dialCallDuration = 120, bool $dialBridged = false, ?string $recordingUrl = null): self
-    {
-        $dial = [
-            'DialCallStatus' => $dialCallStatus,
-            'DialCallSid' => $dialCallSid,
-            'DialCalLDuration' => $dialCallDuration,
-            'DialBridged' => $dialBridged,
-        ];
-        if ($recordingUrl) {
-            $dial['RecordingUrl'] = $recordingUrl;
-        }
-        $this->dialQueue [] = $dial;
-        return $this;
-    }
-
-    public function shiftInput(): ?array
-    {
-        return array_shift($this->inputQueue);
-    }
-
-    public function shiftDial(): array
-    {
-        return array_shift($this->dialQueue) ?? [
-            'DialCallStatus' => 'completed',
-            'DialCallSid' => 'CA' . fake()->uuid,
-            'DialCalLDuration' => 0,
-            'DialBridged' => false,
-        ];
-    }
 
     /**
      * @param array<int,mixed> $extraData
@@ -389,7 +394,9 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-
+    /**
+     * @param array<int,mixed> $tags
+     */
     public function assertTwimlOrder(array $tags): self
     {
         $xml = null;
@@ -410,14 +417,18 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-
+    /**
+     * @param mixed $file
+     */
     public function assertPlayed($file): self
     {
         PHPUnitAssert::assertStringContainsString("<Play>$file</Play>", $this->twiml());
 
         return $this;
     }
-
+    /**
+     * @param mixed $seconds
+     */
     public function assertPaused($seconds): self
     {
         PHPUnitAssert::assertStringContainsString("<Pause length=\"$seconds\"/>", $this->twiml());

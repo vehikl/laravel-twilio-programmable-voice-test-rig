@@ -12,7 +12,10 @@ class Dial implements TwimlHandler
         if (!isset($element['action'])) {
             return false;
         }
-        $dial = $programmableVoice->shiftDial();
+        $dial = $programmableVoice->consumeInput('dial');
+        if (!$dial) {
+            return false;
+        }
         $nextAction($element['action'], $element['method'] ?? 'POST', $dial);
         return true;
     }

@@ -17,12 +17,12 @@ class Gather implements TwimlHandler
 
         $method = strtoupper($element['method'] ?? 'POST');
 
-        $input = $programmableVoice->shiftInput();
+        $input = $programmableVoice->consumeInput('gather');
         if (($element['actionOnEmptyResult'] ?? 'false') === 'false' || !$input) {
             return false;
         }
 
-        $nextAction($action, $method, $input);
+        $nextAction($action, $method, $input ?? []);
         return true;
     }
 }
