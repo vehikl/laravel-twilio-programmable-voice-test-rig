@@ -7,11 +7,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
-use ReflectionClass;
 use SimpleXMLElement;
 use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlHandler;
 
 class ProgrammableVoiceRig
 {
@@ -77,7 +75,7 @@ class ProgrammableVoiceRig
         return $this->pushInput('gather', ['Digits' => $digits]);
     }
 
-    public function gatherDtmf(string $speechResult, float $confidence = 1.0): self
+    public function gatherSpeech(string $speechResult, float $confidence = 1.0): self
     {
         return $this->pushInput('gather', [
             'SpeechResult' => $speechResult,
