@@ -22,9 +22,7 @@ class SingleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
-            ->assert(function (Assert $assert) {
-                $assert->twiml('<Say>%s</Say>', 'Saying something here');
-            })
+            ->assertSaid('Saying something here')
             ->assertCallEnded();
     }
 }

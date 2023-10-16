@@ -27,7 +27,7 @@ class MultipleStepTest extends TestCase
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->record(recordingUrl: 'file.mp3', recordingDuration: 5)
-            ->assertRedirectedTo(route('multiple-step.thanks'), byTwimlTag: 'Record')
+            ->assertTwilioRedirectedTo(route('multiple-step.thanks'), byTwimlTag: 'Record')
             ->assertSaid('Thank-you for recording your name')
             ->assertTwimlContains('<Hangup/>')
             ->assertCallEnded();
@@ -48,11 +48,11 @@ class MultipleStepTest extends TestCase
             ->assertSaid('Record your name')
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
-            ->assertRedirectedTo(route('multiple-step.emptyRecordingRetry'))
+            ->assertTwilioRedirectedTo(route('multiple-step.emptyRecordingRetry'))
             ->assertPlayed('sad-trombone.mp3')
             ->assertPaused(2)
             ->assertSaid('Oops, we couldn\'t hear you, try again')
-            ->assertRedirectedTo(route('multiple-step.record'))
+            ->assertTwilioRedirectedTo(route('multiple-step.record'))
             ->assertCallStatus(CallStatus::in_progress);
     }
 }

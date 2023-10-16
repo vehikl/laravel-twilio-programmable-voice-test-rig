@@ -7,6 +7,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
+use PHPUnit\Framework\ExpectationFailedException;
 use SimpleXMLElement;
 use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlElement;
@@ -38,6 +39,7 @@ class ProgrammableVoiceRig
             'Direction' => $direction,
         ];
     }
+
     /**
      * @param array<string,mixed> $payload
      */
@@ -49,15 +51,15 @@ class ProgrammableVoiceRig
 
         $this->inputs[$type] [] = array_filter(
             $payload,
-            fn ($value) => $value !== null,
+            fn($value) => $value !== null,
         );
 
         return $this;
     }
 
     public function record(
-        string $recordingUrl,
-        int $recordingDuration,
+        string  $recordingUrl,
+        int     $recordingDuration,
         ?string $digits = null,
     ): self
     {
@@ -85,10 +87,10 @@ class ProgrammableVoiceRig
 
     public function dial(
         CallStatus $callStatus,
-        ?string $callSid = null,
-        int $duration = 60,
-        bool $bridged = true,
-        ?string $recordingUrl = null,
+        ?string    $callSid = null,
+        int        $duration = 60,
+        bool       $bridged = true,
+        ?string    $recordingUrl = null,
     ): self
     {
         return $this->pushInput('dial', [
@@ -117,7 +119,7 @@ class ProgrammableVoiceRig
 
         return $this->inputs[$type][0] ?? null;
     }
-    
+
 
     public function setCustomTwimlHandler(string $tag, ?string $classReference): self
     {
@@ -226,13 +228,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function assert(Callable $assertCallback): self
-    {
-        $assertCallback(new Assert($this));
-        return $this;
-    }
-
-    public function tap(Callable $callback): self
+    public function tap(callable $callback): self
     {
         $callback($this->request, $this->response);
 
@@ -253,7 +249,7 @@ class ProgrammableVoiceRig
             return;
         }
 
-        foreach($xml->children() as $tag) {
+        foreach ($xml->children() as $tag) {
             $element = TwimlElement::fromElement($this, $tag, null, $this->customTwimlHandlers);
             if ($element->isActionable()) {
                 $this->actionableElements [] = $element;
@@ -261,7 +257,7 @@ class ProgrammableVoiceRig
         }
     }
 
-    private function handleTwiml(Response $response, Callable $nextAction): void
+    private function handleTwiml(Response $response, callable $nextAction): void
     {
         foreach ($this->actionableElements as $actionable) {
             if ($actionable->runAction($nextAction)) {
@@ -292,8 +288,8 @@ class ProgrammableVoiceRig
     protected function normalizeTwiml(string $xml, ...$replacements): string
     {
         $normalized = collect(explode("\n", sprintf($xml, ...$replacements)))
-            ->map(fn ($line) => trim($line))
-            ->filter(fn ($line) => strlen($line) > 0)
+            ->map(fn($line) => trim($line))
+            ->filter(fn($line) => strlen($line) > 0)
             ->join("");
 
         return str_replace('&', '&amp;', $normalized);
@@ -314,6 +310,7 @@ class ProgrammableVoiceRig
 
         return $this;
     }
+
     /**
      * @param mixed $replacements
      */
@@ -343,6 +340,7 @@ class ProgrammableVoiceRig
 
         return $this;
     }
+
     /**
      * @param array<int,mixed> $tags
      */
@@ -359,13 +357,14 @@ class ProgrammableVoiceRig
         }
 
         $actualTagOrder = [];
-        foreach($xml->children() as $tag) {
+        foreach ($xml->children() as $tag) {
             $actualTagOrder [] = $tag->getName();
         }
         PHPUnitAssert::assertEquals($tags, $actualTagOrder);
 
         return $this;
     }
+
     /**
      * @param mixed $file
      */
@@ -375,6 +374,7 @@ class ProgrammableVoiceRig
 
         return $this;
     }
+
     /**
      * @param mixed $seconds
      */
@@ -385,7 +385,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function assertRedirectedTo(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
+    public function assertTwilioRedirectedTo(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
     {
         $alreadyHandled = false;
         $this->handleTwiml($this->response, function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
@@ -420,6 +420,23 @@ class ProgrammableVoiceRig
             CallStatus::completed,
             CallStatus::no_answer
         ]);
+
+        return $this;
+    }
+
+    public function assertRedirected($url, $method = "POST"): self
+    {
+        if ($method === 'GET') {
+            PHPUnitAssert::assertStringContainsString("<Redirect method=\"GET\">$url</Redirect>", $this->twiml());
+            return $this;
+        }
+
+        try {
+            PHPUnitAssert::assertStringContainsString("<Redirect>$url</Redirect>", $this->twiml());
+        } catch (ExpectationFailedException) {
+            echo 'Warning: With a <Redirect method="POST">, Twilio defaults the method attribute to POST, so you can skip it' . PHP_EOL;
+            PHPUnitAssert::assertStringContainsString("<Redirect method=\"POST\">$url</Redirect>", $this->twiml());
+        }
 
         return $this;
     }

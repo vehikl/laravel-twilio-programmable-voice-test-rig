@@ -24,21 +24,23 @@ class AnonymousDialing extends Controller
             'finishOnKey' => '#',
             'numDigits' => 12,
             'actionOnEmptyResult' => false,
-
         ]);
-        $this->voiceResponse->redirect(route('anonymous-dialing.failed'), ['method' => 'POST']);
+        $this->voiceResponse->redirect(
+            route('anonymous-dialing.failed'),
+            ['method' => 'POST']
+        );
         return $this->voiceResponse;
     }
 
     public function dial(Request $request): VoiceResponse
     {
-        $digits = preg_replace('/\D/g', '', $request->input('Digits'));
+        $digits = preg_replace('/\D/', '', $request->input('Digits'));
         if (strlen($digits) === 0) {
             $this->voiceResponse->redirect(route('anonymous-dialing.failed'), ['method' => 'POST']);
             return $this->voiceResponse;
         }
 
-        $digitsSplit = implode(' ', explode('', $digits));
+        $digitsSplit = implode(' ', str_split($digits));
 
         $this->voiceResponse->say("Dialing $digitsSplit, please wait");
         $this->voiceResponse->pause(['length' => 1]);
