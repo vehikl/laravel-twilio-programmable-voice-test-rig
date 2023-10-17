@@ -56,12 +56,14 @@ public function itDoesABasicFlow(): void
 
 ## Contributors
 
-- Alex
 - Ahmed
+- Alex
 - Brad
+- Eric
 - Hunter
 - Ian
 - John I
 - John M
 - Jeff C
 - Justin S
+- Ruta

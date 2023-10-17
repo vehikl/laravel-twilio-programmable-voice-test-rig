@@ -29,6 +29,17 @@ class AnonymousDialing extends Controller
             route('anonymous-dialing.failed'),
             ['method' => 'POST']
         );
+
+        /*
+         <?xml 1.0?>
+        <Response>
+            <Say>yo wuddup</Say>
+            <Gather action="https://site.com/anonymous-dailing/dial" input="dtmf" finishOnKey="#" ..../>
+            <Redirect .../>
+        </Response>
+
+         */
+
         return $this->voiceResponse;
     }
 

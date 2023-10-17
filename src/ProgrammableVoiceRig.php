@@ -7,7 +7,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
-use PHPUnit\Framework\ExpectationFailedException;
 use SimpleXMLElement;
 use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlElement;
@@ -227,6 +226,7 @@ class ProgrammableVoiceRig
 
         return $this;
     }
+
     /**
      * @param callable(): mixed $callback
      */
@@ -258,6 +258,7 @@ class ProgrammableVoiceRig
             }
         }
     }
+
     /**
      * @param callable(): mixed $nextAction
      */
@@ -365,7 +366,12 @@ class ProgrammableVoiceRig
     {
         $attrs = [];
         foreach ($attributes as $key => $value) {
-            $attrs [] = sprintf('%s="%s"', $key, $value);
+            if (is_bool($value)) {
+                $actualValue = $value === true ? 'true' : 'false';
+                $attrs [] = sprintf('%s="%s"', $key, $actualValue);
+            } else {
+                $attrs [] = sprintf('%s="%s"', $key, $value);
+            }
         }
         $attrs = implode(' ', $attrs);
         if (($attributes['method'] ?? null) === 'POST') {
@@ -447,24 +453,27 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-    /**
-     * @param mixed $url
-     * @param mixed $method
-     */
-    public function assertRedirected($url, $method = "POST"): self
+
+    public function assertHangUp(): self
     {
-        if ($method === 'GET') {
-            PHPUnitAssert::assertStringContainsString("<Redirect method=\"GET\">$url</Redirect>", $this->twiml());
-            return $this;
-        }
+        return $this->assertTwimlContains('<Hangup/>');
+    }
 
-        try {
-            PHPUnitAssert::assertStringContainsString("<Redirect>$url</Redirect>", $this->twiml());
-        } catch (ExpectationFailedException) {
-            echo 'Warning: With a <Redirect method="POST">, Twilio defaults the method attribute to POST, so you can skip it' . PHP_EOL;
-            PHPUnitAssert::assertStringContainsString("<Redirect method=\"POST\">$url</Redirect>", $this->twiml());
+    public function assertDial(string $phoneNumber, array $attributes = []): self
+    {
+        $attrs = [];
+        foreach ($attributes as $key => $value) {
+            if (is_bool($value)) {
+                $actualValue = $value === true ? 'true' : 'false';
+                $attrs [] = sprintf('%s="%s"', $key, $actualValue);
+            } else {
+                $attrs [] = sprintf('%s="%s"', $key, $value);
+            }
         }
-
-        return $this;
+        $attrs = implode(' ', $attrs);
+        if (($attributes['method'] ?? null) === 'POST') {
+            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
+        }
+        return $this->assertTwimlContains('<Dial %s></Dial>');
     }
 }
