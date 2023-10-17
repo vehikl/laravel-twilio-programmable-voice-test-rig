@@ -22,7 +22,7 @@ class SingleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
-            ->assertSaid('Saying something here')
+            ->assertSay('Saying something here')
             ->assertCallEnded();
     }
 }

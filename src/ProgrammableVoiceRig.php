@@ -227,7 +227,9 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-
+    /**
+     * @param callable(): mixed $callback
+     */
     public function tap(callable $callback): self
     {
         $callback($this->request, $this->response);
@@ -256,7 +258,9 @@ class ProgrammableVoiceRig
             }
         }
     }
-
+    /**
+     * @param callable(): mixed $nextAction
+     */
     private function handleTwiml(Response $response, callable $nextAction): void
     {
         foreach ($this->actionableElements as $actionable) {
@@ -323,6 +327,53 @@ class ProgrammableVoiceRig
         return $this;
     }
 
+    public function assertSay(string $text): self
+    {
+        return $this->assertTwimlContains('<Say>%s</Say>', $text);
+    }
+
+    public function assertPlay(string $file): self
+    {
+        return $this->assertTwimlContains('<Play>%s</Play>', $file);
+    }
+
+    public function assertPause(int $seconds): self
+    {
+        return $this->assertTwimlContains('<Pause length="%d"/>', $seconds);
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertRedirect(string $uri, array $attributes = []): self
+    {
+        $attrs = [];
+        foreach ($attributes as $key => $value) {
+            $attrs [] = sprintf('%s="%s"', $key, $value);
+        }
+        $attrs = implode(' ', $attrs);
+        if (($attributes['method'] ?? null) === 'POST') {
+            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
+        }
+        return $this->assertTwimlContains('<Redirect %s>%s</Redirect>', $attrs, $uri);
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertGather(array $attributes = []): self
+    {
+        $attrs = [];
+        foreach ($attributes as $key => $value) {
+            $attrs [] = sprintf('%s="%s"', $key, $value);
+        }
+        $attrs = implode(' ', $attrs);
+        if (($attributes['method'] ?? null) === 'POST') {
+            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
+        }
+        return $this->assertTwimlContains('<Gather %s', $attrs);
+    }
+
     public function assertCallStatus(CallStatus|string $expectedCallStatus): self
     {
         $status = is_string($expectedCallStatus)
@@ -330,13 +381,6 @@ class ProgrammableVoiceRig
             : $expectedCallStatus;
 
         PHPUnitAssert::assertEquals($status, $this->getCallStatus());
-
-        return $this;
-    }
-
-    public function assertSaid(string $text): self
-    {
-        PHPUnitAssert::assertStringContainsString("<Say>$text</Say>", $this->twiml());
 
         return $this;
     }
@@ -365,27 +409,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    /**
-     * @param mixed $file
-     */
-    public function assertPlayed($file): self
-    {
-        PHPUnitAssert::assertStringContainsString("<Play>$file</Play>", $this->twiml());
-
-        return $this;
-    }
-
-    /**
-     * @param mixed $seconds
-     */
-    public function assertPaused($seconds): self
-    {
-        PHPUnitAssert::assertStringContainsString("<Pause length=\"$seconds\"/>", $this->twiml());
-
-        return $this;
-    }
-
-    public function assertTwilioRedirectedTo(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
+    public function assertTwilioHit(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
     {
         $alreadyHandled = false;
         $this->handleTwiml($this->response, function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
@@ -423,7 +447,10 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-
+    /**
+     * @param mixed $url
+     * @param mixed $method
+     */
     public function assertRedirected($url, $method = "POST"): self
     {
         if ($method === 'GET') {

@@ -23,12 +23,12 @@ class MultipleStepTest extends TestCase
         ))
             ->ring(from: '15554443322', to: '12223334455')
             ->assertTwimlOrder(['Say', 'Record', 'Redirect'])
-            ->assertSaid('Record your name')
+            ->assertSay('Record your name')
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->record(recordingUrl: 'file.mp3', recordingDuration: 5)
-            ->assertTwilioRedirectedTo(route('multiple-step.thanks'), byTwimlTag: 'Record')
-            ->assertSaid('Thank-you for recording your name')
+            ->assertTwilioHit(route('multiple-step.thanks'), byTwimlTag: 'Record')
+            ->assertSay('Thank-you for recording your name')
             ->assertTwimlContains('<Hangup/>')
             ->assertCallEnded();
     }
@@ -45,14 +45,14 @@ class MultipleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
-            ->assertSaid('Record your name')
+            ->assertSay('Record your name')
             ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
-            ->assertTwilioRedirectedTo(route('multiple-step.emptyRecordingRetry'))
-            ->assertPlayed('sad-trombone.mp3')
-            ->assertPaused(2)
-            ->assertSaid('Oops, we couldn\'t hear you, try again')
-            ->assertTwilioRedirectedTo(route('multiple-step.record'))
+            ->assertTwilioHit(route('multiple-step.emptyRecordingRetry'))
+            ->assertPlay('sad-trombone.mp3')
+            ->assertPause(2)
+            ->assertSay('Oops, we couldn\'t hear you, try again')
+            ->assertTwilioHit(route('multiple-step.record'))
             ->assertCallStatus(CallStatus::in_progress);
     }
 }
