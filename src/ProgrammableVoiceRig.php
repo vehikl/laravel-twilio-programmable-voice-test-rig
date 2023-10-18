@@ -346,17 +346,34 @@ class ProgrammableVoiceRig
     /**
      * @param array<string,mixed> $attributes
      */
-    public function assertRedirect(string $uri, array $attributes = []): self
+    public function assertTag(string $tagName, array $attributes, bool $hasChildren = false): self
     {
         $attrs = [];
         foreach ($attributes as $key => $value) {
-            $attrs [] = sprintf('%s="%s"', $key, $value);
+            $boolValue = $value ? 'true' : 'false';
+            $actualValue = is_bool($value)
+                ? $boolValue
+                : $value;
+            $attrs [] = sprintf('%s="%s"', $key, $actualValue);
         }
         $attrs = implode(' ', $attrs);
         if (($attributes['method'] ?? null) === 'POST') {
-            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
+            echo "Warning: You have a $tagName with method=\"POST\" but this is the Twiml default, you can remove the method attribute" . PHP_EOL;
         }
-        return $this->assertTwimlContains('<Redirect %s>%s</Redirect>', $attrs, $uri);
+        return $this->assertTwimlContains('<%s %s%s>', $tagName, $attrs, $hasChildren ? '' : '/');
+    }
+
+    public function assertDial(string $phoneNumber, array $attributes = []): self
+    {
+        return $this->assertTag('Dial', $attributes, true);
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertRedirect(string $uri, array $attributes = []): self
+    {
+        return $this->assertTag('Redirect', $attributes, true);
     }
 
     /**
@@ -364,20 +381,7 @@ class ProgrammableVoiceRig
      */
     public function assertGather(array $attributes = []): self
     {
-        $attrs = [];
-        foreach ($attributes as $key => $value) {
-            if (is_bool($value)) {
-                $actualValue = $value === true ? 'true' : 'false';
-                $attrs [] = sprintf('%s="%s"', $key, $actualValue);
-            } else {
-                $attrs [] = sprintf('%s="%s"', $key, $value);
-            }
-        }
-        $attrs = implode(' ', $attrs);
-        if (($attributes['method'] ?? null) === 'POST') {
-            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
-        }
-        return $this->assertTwimlContains('<Gather %s', $attrs);
+        return $this->assertTag('Gather', $attributes);
     }
 
     public function assertCallStatus(CallStatus|string $expectedCallStatus): self
@@ -459,26 +463,5 @@ class ProgrammableVoiceRig
         return $this->assertTwimlContains('<Hangup/>');
     }
 
-    public function assertTag(string $tag, array $attributes, ?string $body = null): self
-    {
-        return $this;
-    }
 
-    public function assertDial(string $phoneNumber, array $attributes = []): self
-    {
-        $attrs = [];
-        foreach ($attributes as $key => $value) {
-            if (is_bool($value)) {
-                $actualValue = $value === true ? 'true' : 'false';
-                $attrs [] = sprintf('%s="%s"', $key, $actualValue);
-            } else {
-                $attrs [] = sprintf('%s="%s"', $key, $value);
-            }
-        }
-        $attrs = implode(' ', $attrs);
-        if (($attributes['method'] ?? null) === 'POST') {
-            echo 'Warning: You have a redirect with method="POST" but this is the Twiml default, you can remove the method attribute' . PHP_EOL;
-        }
-        return $this->assertTwimlContains('<Dial %s></Dial>');
-    }
 }
