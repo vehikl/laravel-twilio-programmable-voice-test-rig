@@ -24,13 +24,14 @@ class AnonymousDialingTest extends TestCase
         ))
             ->ring(from: '15554443322', to: '12223334455')
             ->assertSay('Dial North-American Number, then press pound')
-//            ->assertTwimlContains('<Gather action="%s" input="dtmf" finishOnKey="#" numDigits="12" actionOnEmptyResult="false"/>',)
             ->assertGather([
                 'action' => route('anonymous-dialing.dial'),
                 'input' => 'dtmf',
                 'finishOnKey' => '#',
                 'numDigits' => 12,
                 'actionOnEmptyResult' => false,
+            ], [
+                '<Say>hi</Say>'
             ])
             ->gatherDigits('5554443322#')
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
@@ -63,8 +64,7 @@ class AnonymousDialingTest extends TestCase
             ->assertTwilioHit(route('anonymous-dialing.failed'), byTwimlTag: "Redirect")
             ->assertSay('Please try again later')
             ->assertTwimlContains('<Hangup/>', route('anonymous-dialing.completed'))
-             ->assertHangup()
-
+            ->assertHangup()
             ->assertCallEnded();
     }
 

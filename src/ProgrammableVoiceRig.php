@@ -343,10 +343,7 @@ class ProgrammableVoiceRig
         return $this->assertTwimlContains('<Pause length="%d"/>', $seconds);
     }
 
-    /**
-     * @param array<string,mixed> $attributes
-     */
-    public function assertTag(string $tagName, array $attributes, bool $hasChildren = false): self
+    protected function makeTag(string $tagName, array $attributes, ?array $children = null): string
     {
         $attrs = [];
         foreach ($attributes as $key => $value) {
@@ -360,12 +357,42 @@ class ProgrammableVoiceRig
         if (($attributes['method'] ?? null) === 'POST') {
             echo "Warning: You have a $tagName with method=\"POST\" but this is the Twiml default, you can remove the method attribute" . PHP_EOL;
         }
-        return $this->assertTwimlContains('<%s %s%s>', $tagName, $attrs, $hasChildren ? '' : '/');
+
+        return sprintf(
+            '<%s %s%s>%s%s',
+            $tagName,
+            $attrs,
+            $children ? '' : '/',
+            $children ? implode('', $children) : '',
+            $children ? "</$tagName>" : '',
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertTag(string $tagName, array $attributes, bool $hasChildren = false, string $body = ''): self
+    {
+        return $this->assertTwimlContains($this->makeTag(
+            $tagName,
+            $attributes,
+            $hasChildren ? [$body] : null
+        ));
+    }
+
+    public function assertTagWithChildren(string $tagName, array $attributes, array $children = []): self
+    {
+        return $this->assertTwimlContains($this->makeTag(
+            $tagName,
+            $attributes,
+            $children
+        ));
     }
 
     public function assertDial(string $phoneNumber, array $attributes = []): self
     {
-        return $this->assertTag('Dial', $attributes, true);
+        // return $this->assertTagWithChildren('Dial', $attributes, ['Say', $phoneNumber]);
+        return $this->assertTag('Dial', $attributes, true, $phoneNumber);
     }
 
     /**
@@ -379,9 +406,9 @@ class ProgrammableVoiceRig
     /**
      * @param array<string,mixed> $attributes
      */
-    public function assertGather(array $attributes = []): self
+    public function assertGather(array $attributes = [], ?array $children = null): self
     {
-        return $this->assertTag('Gather', $attributes);
+        return $this->assertTagWithChildren('Gather', $attributes, $children);
     }
 
     public function assertCallStatus(CallStatus|string $expectedCallStatus): self
