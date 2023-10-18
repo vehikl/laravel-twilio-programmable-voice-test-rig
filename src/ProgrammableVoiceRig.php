@@ -459,6 +459,11 @@ class ProgrammableVoiceRig
         return $this->assertTwimlContains('<Hangup/>');
     }
 
+    public function assertTag(string $tag, array $attributes, ?string $body = null): self
+    {
+        return $this;
+    }
+
     public function assertDial(string $phoneNumber, array $attributes = []): self
     {
         $attrs = [];
