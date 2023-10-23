@@ -13,13 +13,11 @@ class Dial extends Element
     {
         $action = $this->attr('action');
         if (!$action) {
-            $this->rig->warn('No action');
             return false;
         }
 
         $input = $this->rig->consumeInput('dial');
         if (!$input) {
-            $this->rig->warn('No input');
             return false;
         }
 
