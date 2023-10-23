@@ -6,7 +6,7 @@ use ReflectionClass;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class TwimlElement
+class Element
 {
     const MAP = [
         'Dial' => Dial::class,

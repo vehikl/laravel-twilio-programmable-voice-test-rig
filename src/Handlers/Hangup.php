@@ -2,7 +2,7 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-class Hangup extends TwimlElement
+class Hangup extends Element
 {
     public function isActionable(): bool
     {

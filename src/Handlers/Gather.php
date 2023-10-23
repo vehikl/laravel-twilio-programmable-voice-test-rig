@@ -6,7 +6,7 @@ use Exception;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class Gather extends TwimlElement
+class Gather extends Element
 {
     protected ?array $gather = null;
     protected ?string $actionUri = null;

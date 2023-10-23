@@ -2,7 +2,7 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-class Dial extends TwimlElement
+class Dial extends Element
 {
     public function isActionable(): bool
     {

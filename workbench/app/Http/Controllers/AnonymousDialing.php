@@ -18,13 +18,14 @@ class AnonymousDialing extends Controller
     public function gather(): VoiceResponse
     {
         $this->voiceResponse->say('Dial North-American Number, then press pound');
-        $this->voiceResponse->gather([
+        $gather = $this->voiceResponse->gather([
             'action' => route('anonymous-dialing.dial'),
             'input' => 'dtmf',
             'finishOnKey' => '#',
             'numDigits' => 12,
             'actionOnEmptyResult' => false,
         ]);
+        $gather->say('hi');
         $this->voiceResponse->redirect(
             route('anonymous-dialing.failed'),
             ['method' => 'POST']

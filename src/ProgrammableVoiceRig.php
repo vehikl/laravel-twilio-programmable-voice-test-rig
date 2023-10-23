@@ -9,7 +9,7 @@ use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
 use SimpleXMLElement;
 use Throwable;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\TwimlElement;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
 class ProgrammableVoiceRig
 {
@@ -252,7 +252,7 @@ class ProgrammableVoiceRig
         }
 
         foreach ($xml->children() as $tag) {
-            $element = TwimlElement::fromElement($this, $tag, null, $this->customTwimlHandlers);
+            $element = Element::fromElement($this, $tag, null, $this->customTwimlHandlers);
             if ($element->isActionable()) {
                 $this->actionableElements [] = $element;
             }
@@ -343,7 +343,7 @@ class ProgrammableVoiceRig
         return $this->assertTwimlContains('<Pause length="%d"/>', $seconds);
     }
 
-    protected function makeTag(string $tagName, array $attributes, ?array $children = null): string
+    protected function makeTag(string $tagName, array $attributes, array|bool|null $children = null): string
     {
         $attrs = [];
         foreach ($attributes as $key => $value) {
@@ -363,8 +363,8 @@ class ProgrammableVoiceRig
             $tagName,
             $attrs,
             $children ? '' : '/',
-            $children ? implode('', $children) : '',
-            $children ? "</$tagName>" : '',
+            is_array($children) ? implode('', $children) : '',
+            is_array($children) ? "</$tagName>" : '',
         );
     }
 
@@ -380,7 +380,7 @@ class ProgrammableVoiceRig
         ));
     }
 
-    public function assertTagWithChildren(string $tagName, array $attributes, array $children = []): self
+    public function assertTagWithChildren(string $tagName, array $attributes, array|bool|null $children = []): self
     {
         return $this->assertTwimlContains($this->makeTag(
             $tagName,
@@ -400,13 +400,13 @@ class ProgrammableVoiceRig
      */
     public function assertRedirect(string $uri, array $attributes = []): self
     {
-        return $this->assertTag('Redirect', $attributes, true);
+        return $this->assertTagWithChildren('Redirect', $attributes, [$uri]);
     }
 
     /**
      * @param array<string,mixed> $attributes
      */
-    public function assertGather(array $attributes = [], ?array $children = null): self
+    public function assertGather(array $attributes = [], array|bool|null $children = null): self
     {
         return $this->assertTagWithChildren('Gather', $attributes, $children);
     }
@@ -485,7 +485,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function assertHangUp(): self
+    public function assertHangup(): self
     {
         return $this->assertTwimlContains('<Hangup/>');
     }

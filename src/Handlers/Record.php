@@ -6,7 +6,7 @@ use Exception;
 use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class Record extends TwimlElement
+class Record extends Element
 {
     protected ?string $actionUri;
 

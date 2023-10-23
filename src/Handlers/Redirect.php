@@ -2,7 +2,7 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-class Redirect extends TwimlElement
+class Redirect extends Element
 {
     public function isActionable(): bool
     {
