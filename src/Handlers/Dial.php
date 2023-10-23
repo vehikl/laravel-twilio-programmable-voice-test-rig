@@ -11,16 +11,20 @@ class Dial extends Element
 
     public function runAction(Callable $nextAction): bool
     {
-        if (!isset($this->element['action'])) {
+        $action = $this->attr('action');
+        if (!$action) {
+            $this->rig->warn('No action');
             return false;
         }
 
         $input = $this->rig->consumeInput('dial');
         if (!$input) {
+            $this->rig->warn('No input');
             return false;
         }
 
-        $nextAction('Dial', $this->element['action'], $this->element['method'] ?? 'POST', $input);
+        $method = $this->attr('method', 'POST');
+        $nextAction('Dial', $action, $method, $input);
         return true;
     }
 }

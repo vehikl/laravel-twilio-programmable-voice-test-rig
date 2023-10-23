@@ -22,6 +22,7 @@ class AnonymousDialingTest extends TestCase
                 ),
             ),
         ))
+            ->warnings()
             ->ring(from: '15554443322', to: '12223334455')
             ->assertSay('Dial North-American Number, then press pound')
             ->assertGather([
@@ -35,6 +36,7 @@ class AnonymousDialingTest extends TestCase
             ])
             ->gatherDigits('5554443322#')
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
+
             ->assertTwilioHit(route('anonymous-dialing.dial'), byTwimlTag: "Gather")
             ->assertSay('Dialing 5 5 5 4 4 4 3 3 2 2, please wait')
             ->assertPause(1)

@@ -11,7 +11,9 @@ class Redirect extends Element
 
     public function runAction(Callable $nextAction): bool
     {
-        $nextAction('Redirect', (string)$this->element, $this->element['method'] ?? 'POST');
+        $uri = $this->element->textContent;
+        $method = strtoupper($this->attr('method', 'POST'));
+        $nextAction('Redirect', $uri, $method);
         return true;
     }
 }

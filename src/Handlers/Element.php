@@ -2,8 +2,8 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use DOMNode;
 use ReflectionClass;
-use SimpleXMLElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Element
@@ -16,9 +16,12 @@ class Element
         'Redirect' => Redirect::class,
     ];
 
-    public static function fromElement(ProgrammableVoiceRig $rig, SimpleXMLElement $element, ?TwimlElement $parent = null, array $customMapping = []): self
+    public static function fromElement(ProgrammableVoiceRig $rig, DOMNode $element, ?self $parent = null, array $customMapping = []): self
     {
-        $class = $customMapping[$element->getName()] ?? self::MAP[$element->getName()] ?? null;
+        $class = $customMapping[$element->nodeName]
+            ?? self::MAP[$element->nodeName]
+            ?? null;
+
         if (!$class) {
             return new self($rig, $element, $parent);
         }
@@ -28,10 +31,24 @@ class Element
 
     public function __construct(
         public ProgrammableVoiceRig $rig,
-        public SimpleXMLElement $element,
-        public ?TwimlElement $parent = null,
+        public DOMNode $element,
+        public ?self $parent = null,
     )
     {
+    }
+
+    public function attr(string $name, ?string $fallback = null): mixed
+    {
+        $node = $this->element->attributes->getNamedItem($name);
+        return $node?->nodeValue ?? $fallback;
+    }
+
+    public function hasAttr(string $name, ?string $value): bool
+    {
+        $attribute = $this->element->attributes->getNamedItem($name);
+        if (!$attribute) return false;
+        if (!$value) return true;
+        return $attribute->nodeValue == $value;
     }
 
     public function isActionable(): bool

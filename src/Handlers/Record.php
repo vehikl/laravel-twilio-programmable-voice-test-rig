@@ -2,20 +2,8 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use Exception;
-use SimpleXMLElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
-
 class Record extends Element
 {
-    protected ?string $actionUri;
-
-    public function __construct(ProgrammableVoiceRig $rig, SimpleXMLElement $element, ?TwimlElement $parent = null)
-    {
-        parent::__construct($rig, $element, $parent);
-        $this->actionUri = $element['action'] ?? $rig->request?->fullUrl() ?? null;
-    }
-
     public function isActionable(): bool
     {
         return true;
@@ -23,17 +11,18 @@ class Record extends Element
 
     public function runAction(Callable $nextAction): bool
     {
-        if (!$this->actionUri) {
-            throw new Exception('Unable to handle record, action and request are both missing');
+        if (!$this->attr('action')) {
+            $this->rig->warn('Detected record without an action, which falls back to the current document. This can result in unexpected loops.');
         }
+        $action = $this->attr('action', $this->rig->request?->fullUrl());
         $input = $this->rig->consumeInput('record');
         if (!$input) {
             return false;
         }
 
-        $method = strtoupper($this->element['method'] ?? 'post');
+        $method = strtoupper($this->attr('method', 'POST'));
 
-        $nextAction('Record', $this->actionUri, $method, $input);
+        $nextAction('Record', $action, $method, $input);
         return true;
     }
 }

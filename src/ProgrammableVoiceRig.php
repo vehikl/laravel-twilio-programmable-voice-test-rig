@@ -2,12 +2,12 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
+use DOMDocument;
 use Exception;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
-use SimpleXMLElement;
 use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
@@ -17,8 +17,9 @@ class ProgrammableVoiceRig
 
     protected array $twilioCallParameters = [];
 
-    protected ?Request $request = null;
-    protected ?Response $response = null;
+    public ?Request $request = null;
+    public ?Response $response = null;
+    protected ?DOMDocument $xml = null;
 
     protected array $inputs = [
         'record' => [],
@@ -26,7 +27,8 @@ class ProgrammableVoiceRig
         'dial' => [],
     ];
 
-    protected array $actionableElements = [];
+    private bool $withWarnings = false;
+
 
     public function __construct(protected Application $app, protected TwimlApp $twimlApp, string $direction = 'inbound', CallStatus $callStatus = CallStatus::ringing)
     {
@@ -37,6 +39,18 @@ class ProgrammableVoiceRig
             'ApiVersion' => '',
             'Direction' => $direction,
         ];
+    }
+
+    public function warnings(bool $toggle = true): self
+    {
+        $this->withWarnings = $toggle;
+        return $this;
+    }
+
+    public function warn(string $format, mixed ...$replacements): void
+    {
+        if (!$this->withWarnings) return;
+        echo sprintf('WARNING: %s%s', sprintf($format, ...$replacements), PHP_EOL);
     }
 
     /**
@@ -227,10 +241,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    /**
-     * @param callable(): mixed $callback
-     */
-    public function tap(callable $callback): self
+    public function tap(Callable $callback): self
     {
         $callback($this->request, $this->response);
 
@@ -239,42 +250,32 @@ class ProgrammableVoiceRig
 
     private function parseTwiml(string $twiml): void
     {
-        $this->actionableElements = [];
-
-        $xml = '';
-        try {
-            $xml = simplexml_load_string($twiml);
-        } catch (Throwable $e) {
+        $doc = new DOMDocument();
+        if (!$doc->loadXML($twiml)) {
             PHPUnitAssert::fail('Invalid Twiml response');
         }
-        if (!$this->isTwiml($xml)) {
-            return;
-        }
-
-        foreach ($xml->children() as $tag) {
-            $element = Element::fromElement($this, $tag, null, $this->customTwimlHandlers);
-            if ($element->isActionable()) {
-                $this->actionableElements [] = $element;
-            }
-        }
+        $this->isTwiml($doc);
+        $this->xml = $doc;
     }
 
-    /**
-     * @param callable(): mixed $nextAction
-     */
-    private function handleTwiml(Response $response, callable $nextAction): void
+    private function handleTwiml(Response $response, Callable $nextAction): void
     {
-        foreach ($this->actionableElements as $actionable) {
-            if ($actionable->runAction($nextAction)) {
+        $topLevelElements = $this->xml->firstChild->childNodes;
+
+        foreach ($topLevelElements as $child) {
+            $handler = Element::fromElement($this, $child);
+            if (!$handler->isActionable()) continue;
+            if ($handler->runAction($nextAction)) {
                 return;
             }
+
         }
         $this->setCallStatus('completed');
     }
 
-    private function isTwiml(SimpleXMLElement $xml): bool
+    private function isTwiml(DOMDocument $doc): void
     {
-        return $xml->getName() === 'Response';
+        PHPUnitAssert::assertEquals('Response', $doc->firstChild->nodeName);
     }
 
     public function getCallStatus(): CallStatus
@@ -342,7 +343,9 @@ class ProgrammableVoiceRig
     {
         return $this->assertTwimlContains('<Pause length="%d"/>', $seconds);
     }
-
+    /**
+     * @param array<int,mixed> $attributes
+     */
     protected function makeTag(string $tagName, array $attributes, array|bool|null $children = null): string
     {
         $attrs = [];
@@ -354,9 +357,6 @@ class ProgrammableVoiceRig
             $attrs [] = sprintf('%s="%s"', $key, $actualValue);
         }
         $attrs = implode(' ', $attrs);
-        if (($attributes['method'] ?? null) === 'POST') {
-            echo "Warning: You have a $tagName with method=\"POST\" but this is the Twiml default, you can remove the method attribute" . PHP_EOL;
-        }
 
         return sprintf(
             '<%s %s%s>%s%s',
@@ -379,7 +379,9 @@ class ProgrammableVoiceRig
             $hasChildren ? [$body] : null
         ));
     }
-
+    /**
+     * @param array<int,mixed> $attributes
+     */
     public function assertTagWithChildren(string $tagName, array $attributes, array|bool|null $children = []): self
     {
         return $this->assertTwimlContains($this->makeTag(
@@ -388,7 +390,9 @@ class ProgrammableVoiceRig
             $children
         ));
     }
-
+    /**
+     * @param array<int,mixed> $attributes
+     */
     public function assertDial(string $phoneNumber, array $attributes = []): self
     {
         // return $this->assertTagWithChildren('Dial', $attributes, ['Say', $phoneNumber]);
@@ -427,22 +431,16 @@ class ProgrammableVoiceRig
      */
     public function assertTwimlOrder(array $tags): self
     {
-        $xml = null;
-        try {
-            $xml = simplexml_load_string($this->response->getContent());
-        } catch (Throwable $e) {
-            PHPUnitAssert::fail('Invalid Twiml response');
+        $remainingTags = [...$tags];
+        foreach ($this->xml->firstChild->childNodes as $child) {
+            if ($child->nodeName === $remainingTags[0]) {
+                array_shift($remainingTags);
+            }
+            if (count($remainingTags) === 0) {
+                break;
+            }
         }
-        if (!$this->isTwiml($xml)) {
-            return $this;
-        }
-
-        $actualTagOrder = [];
-        foreach ($xml->children() as $tag) {
-            $actualTagOrder [] = $tag->getName();
-        }
-        PHPUnitAssert::assertEquals($tags, $actualTagOrder);
-
+        PHPUnitAssert::assertCount(0, $remainingTags);
         return $this;
     }
 
@@ -454,7 +452,7 @@ class ProgrammableVoiceRig
                 throw new Exception('Attempted to follow twiml more than once on the same response');
             }
 
-            PHPUnitAssert::assertEquals([$expectedMethod, $expectedUri], [$method, $url]);
+            PHPUnitAssert::assertEquals("$expectedMethod $expectedUri", "$method $url", 'Unexpected twilio redirect');
             if ($byTwimlTag) {
                 PHPUnitAssert::assertEquals($byTwimlTag, $tag);
             }
