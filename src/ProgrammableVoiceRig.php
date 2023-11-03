@@ -2,16 +2,20 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
+use Closure;
+use DOMAttr;
 use DOMDocument;
+use DOMElement;
+use DOMNamedNodeMap;
+use DOMNodeList;
 use Exception;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
-use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
-class ProgrammableVoiceRig
+class ProgrammableVoiceRig extends AssertContext
 {
     private array $customTwimlHandlers = [];
 
@@ -19,7 +23,6 @@ class ProgrammableVoiceRig
 
     public ?Request $request = null;
     public ?Response $response = null;
-    protected ?DOMDocument $xml = null;
 
     protected array $inputs = [
         'record' => [],
@@ -241,7 +244,10 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function tap(Callable $callback): self
+    /**
+     * @param Closure(Request $req, Response): void $callback
+     */
+    public function tap(Closure $callback): self
     {
         $callback($this->request, $this->response);
 
@@ -255,12 +261,15 @@ class ProgrammableVoiceRig
             PHPUnitAssert::fail('Invalid Twiml response');
         }
         $this->isTwiml($doc);
-        $this->xml = $doc;
+        $this->setAssertionContext($doc, $twiml);
     }
 
-    private function handleTwiml(Response $response, Callable $nextAction): void
+    /**
+     * @param Closure(string $tag, string $url, string $method = 'POST', array $data = []): void $nextAction
+     */
+    private function handleTwiml(Response $response, Closure $nextAction): void
     {
-        $topLevelElements = $this->xml->firstChild->childNodes;
+        $topLevelElements = $this->root->firstChild->childNodes;
 
         foreach ($topLevelElements as $child) {
             $handler = Element::fromElement($this, $child);
@@ -276,172 +285,6 @@ class ProgrammableVoiceRig
     private function isTwiml(DOMDocument $doc): void
     {
         PHPUnitAssert::assertEquals('Response', $doc->firstChild->nodeName);
-    }
-
-    public function getCallStatus(): CallStatus
-    {
-        return CallStatus::tryFrom($this->twilioCallParameters['CallStatus']);
-    }
-
-    public function twiml(): string
-    {
-        return $this->response->getContent();
-    }
-
-    /**
-     * @param mixed $replacements
-     */
-    protected function normalizeTwiml(string $xml, ...$replacements): string
-    {
-        $normalized = collect(explode("\n", sprintf($xml, ...$replacements)))
-            ->map(fn($line) => trim($line))
-            ->filter(fn($line) => strlen($line) > 0)
-            ->join("");
-
-        return str_replace('&', '&amp;', $normalized);
-    }
-
-    /**
-     * @param mixed $replacements
-     */
-    public function assertTwimlEquals(string $xml, ...$replacements): self
-    {
-        $expectedTwiml = sprintf(
-            "%s\n<Response>%s</Response>\n",
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            $this->normalizeTwiml($xml, ...$replacements),
-        );
-
-        PHPUnitAssert::assertEquals($expectedTwiml, $this->twiml(), 'Expected twiml does not match actual');
-
-        return $this;
-    }
-
-    /**
-     * @param mixed $replacements
-     */
-    public function assertTwimlContains(string $xml, ...$replacements): self
-    {
-        $expectedPartialTwiml = $this->normalizeTwiml($xml, ...$replacements);
-
-        PHPUnitAssert::assertStringContainsString($expectedPartialTwiml, $this->twiml(), 'Expected twiml does not match actual');
-
-        return $this;
-    }
-
-    public function assertSay(string $text): self
-    {
-        return $this->assertTwimlContains('<Say>%s</Say>', $text);
-    }
-
-    public function assertPlay(string $file): self
-    {
-        return $this->assertTwimlContains('<Play>%s</Play>', $file);
-    }
-
-    public function assertPause(int $seconds): self
-    {
-        return $this->assertTwimlContains('<Pause length="%d"/>', $seconds);
-    }
-    /**
-     * @param array<int,mixed> $attributes
-     */
-    protected function makeTag(string $tagName, array $attributes, array|bool|null $children = null): string
-    {
-        $attrs = [];
-        foreach ($attributes as $key => $value) {
-            $boolValue = $value ? 'true' : 'false';
-            $actualValue = is_bool($value)
-                ? $boolValue
-                : $value;
-            $attrs [] = sprintf('%s="%s"', $key, $actualValue);
-        }
-        $attrs = implode(' ', $attrs);
-
-        return sprintf(
-            '<%s %s%s>%s%s',
-            $tagName,
-            $attrs,
-            $children ? '' : '/',
-            is_array($children) ? implode('', $children) : '',
-            is_array($children) ? "</$tagName>" : '',
-        );
-    }
-
-    /**
-     * @param array<string,mixed> $attributes
-     */
-    public function assertTag(string $tagName, array $attributes, bool $hasChildren = false, string $body = ''): self
-    {
-        return $this->assertTwimlContains($this->makeTag(
-            $tagName,
-            $attributes,
-            $hasChildren ? [$body] : null
-        ));
-    }
-    /**
-     * @param array<int,mixed> $attributes
-     */
-    public function assertTagWithChildren(string $tagName, array $attributes, array|bool|null $children = []): self
-    {
-        return $this->assertTwimlContains($this->makeTag(
-            $tagName,
-            $attributes,
-            $children
-        ));
-    }
-    /**
-     * @param array<int,mixed> $attributes
-     */
-    public function assertDial(string $phoneNumber, array $attributes = []): self
-    {
-        // return $this->assertTagWithChildren('Dial', $attributes, ['Say', $phoneNumber]);
-        return $this->assertTag('Dial', $attributes, true, $phoneNumber);
-    }
-
-    /**
-     * @param array<string,mixed> $attributes
-     */
-    public function assertRedirect(string $uri, array $attributes = []): self
-    {
-        return $this->assertTagWithChildren('Redirect', $attributes, [$uri]);
-    }
-
-    /**
-     * @param array<string,mixed> $attributes
-     */
-    public function assertGather(array $attributes = [], array|bool|null $children = null): self
-    {
-        return $this->assertTagWithChildren('Gather', $attributes, $children);
-    }
-
-    public function assertCallStatus(CallStatus|string $expectedCallStatus): self
-    {
-        $status = is_string($expectedCallStatus)
-            ? CallStatus::tryFrom($expectedCallStatus)
-            : $expectedCallStatus;
-
-        PHPUnitAssert::assertEquals($status, $this->getCallStatus());
-
-        return $this;
-    }
-
-    /**
-     * @param array<int,mixed> $tags
-     */
-    public function assertTwimlOrder(array $tags): self
-    {
-        $remainingTags = [...$tags];
-        foreach ($this->xml->firstChild->childNodes as $child) {
-            if ($child->nodeName === $remainingTags[0]) {
-                array_shift($remainingTags);
-            }
-            if (count($remainingTags) === 0) {
-                break;
-            }
-        }
-        PHPUnitAssert::assertCount(0, $remainingTags);
-        return $this;
     }
 
     public function assertTwilioHit(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
@@ -482,11 +325,4 @@ class ProgrammableVoiceRig
 
         return $this;
     }
-
-    public function assertHangup(): self
-    {
-        return $this->assertTwimlContains('<Hangup/>');
-    }
-
-
 }

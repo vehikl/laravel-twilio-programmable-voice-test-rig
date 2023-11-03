@@ -2,6 +2,7 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use Closure;
 use DOMNode;
 use ReflectionClass;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
@@ -56,7 +57,10 @@ class Element
         return false;
     }
 
-    public function runAction(Callable $nextAction): bool
+    /**
+     * @param Closure(string $tag, string $url, string $method = 'POST', array $data = []): void $nextAction
+     */
+    public function runAction(Closure $nextAction): bool
     {
         return false;
     }

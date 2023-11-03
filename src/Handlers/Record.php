@@ -2,6 +2,8 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use Closure;
+
 class Record extends Element
 {
     public function isActionable(): bool
@@ -9,7 +11,7 @@ class Record extends Element
         return true;
     }
 
-    public function runAction(Callable $nextAction): bool
+    public function runAction(Closure $nextAction): bool
     {
         if (!$this->attr('action')) {
             $this->rig->warn('Detected record without an action, which falls back to the current document. This can result in unexpected loops.');

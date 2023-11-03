@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\AssertContext;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlApp;
@@ -31,9 +32,12 @@ class AnonymousDialingTest extends TestCase
                 'finishOnKey' => '#',
                 'numDigits' => 12,
                 'actionOnEmptyResult' => false,
-            ], [
-                '<Say>hi</Say>'
             ])
+            ->assertElementChildren(function (AssertContext $context) {
+                return $context
+                    ->assertSay('hi');
+            })
+
             ->gatherDigits('5554443322#')
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
 
@@ -72,10 +76,7 @@ class AnonymousDialingTest extends TestCase
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
             ->assertTwilioHit(route('anonymous-dialing.failed'), byTwimlTag: "Redirect")
             ->assertSay('Please try again later')
-            ->assertTwimlContains('<Hangup/>', route('anonymous-dialing.completed'))
             ->assertHangup()
             ->assertCallEnded();
     }
-
-
 }
