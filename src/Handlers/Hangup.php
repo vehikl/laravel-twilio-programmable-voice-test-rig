@@ -3,6 +3,7 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
+use Exception;
 
 class Hangup extends Element
 {
@@ -10,6 +11,11 @@ class Hangup extends Element
     {
         return true;
     }
+
+    /**
+     * @param Closure(string, string, string, array):void $nextAction
+     * @throws Exception
+     */
     public function runAction(Closure $nextAction): bool
     {
         $this->rig->setCallStatus('completed');

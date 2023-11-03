@@ -58,7 +58,7 @@ class Element
     }
 
     /**
-     * @param Closure(string $tag, string $url, string $method = 'POST', array $data = []): void $nextAction
+     * @param Closure(string, string, string, array):void $nextAction
      */
     public function runAction(Closure $nextAction): bool
     {

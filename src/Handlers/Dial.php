@@ -3,6 +3,7 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
+use Exception;
 
 class Dial extends Element
 {
@@ -11,6 +12,10 @@ class Dial extends Element
         return true;
     }
 
+    /**
+     * @param Closure(string, string, string, array):void $nextAction
+     * @throws Exception
+     */
     public function runAction(Closure $nextAction): bool
     {
         $action = $this->attr('action');

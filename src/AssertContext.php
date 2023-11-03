@@ -17,19 +17,14 @@ class AssertContext
     protected ?string $actualXML = null;
 
 
-    public function setAssertionContext(DOMDocument|DOMElement $root, ?string $actualXML = null): self
+    public function setAssertionContext(DOMDocument|DOMElement $root): self
     {
-        if (!$root) {
-            Assert::fail('Cannot set an empty assertion context');
-        }
-
         $this->root = $root;
         $this->lastAssertedDomNode = null;
         if ($root instanceof DOMDocument) {
             $this->actualXML = $root->saveXML();
         } else {
             $this->actualXML = $root->ownerDocument->saveXML($root);
-            var_dump('partial', $this->actualXML);
         }
 
         return $this;
@@ -151,7 +146,6 @@ class AssertContext
         }
 
         Assert::fail(sprintf('Unable to find any %s tag with specified attributes', $tagName));
-        return $this;
     }
 
     /**
@@ -184,7 +178,6 @@ class AssertContext
         $root = $this->lastAssertedDomNode ?? $this->root;
         if (!$this->lastAssertedDomNode) {
             Assert::fail('assertElementChildren must be used after asserting on a specific element');
-            return $this;
         }
         $asserter((new AssertContext)->setAssertionContext($this->lastAssertedDomNode));
         return $this;
@@ -299,19 +292,6 @@ class AssertContext
         }
 
         return $this;
-
-
-        //
-        // foreach ($this->root->childNodes as $child) {
-        //     if ($child->nodeName === $remainingTags[0]) {
-        //         array_shift($remainingTags);
-        //     }
-        //     if (count($remainingTags) === 0) {
-        //         break;
-        //     }
-        // }
-        // Assert::assertCount(0, $remainingTags);
-        // return $this;
     }
 
     public function assertHangup(): self

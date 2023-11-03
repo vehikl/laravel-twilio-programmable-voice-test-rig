@@ -3,11 +3,7 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
 use Closure;
-use DOMAttr;
 use DOMDocument;
-use DOMElement;
-use DOMNamedNodeMap;
-use DOMNodeList;
 use Exception;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
@@ -17,8 +13,6 @@ use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
 class ProgrammableVoiceRig extends AssertContext
 {
-    private array $customTwimlHandlers = [];
-
     protected array $twilioCallParameters = [];
 
     public ?Request $request = null;
@@ -58,6 +52,7 @@ class ProgrammableVoiceRig extends AssertContext
 
     /**
      * @param array<string,mixed> $payload
+     * @throws Exception
      */
     private function pushInput(string $type, array $payload): self
     {
@@ -73,6 +68,9 @@ class ProgrammableVoiceRig extends AssertContext
         return $this;
     }
 
+    /**
+     * @throws Exception
+     */
     public function record(
         string  $recordingUrl,
         int     $recordingDuration,
@@ -86,6 +84,9 @@ class ProgrammableVoiceRig extends AssertContext
         ]);
     }
 
+    /**
+     * @throws Exception
+     */
     public function gatherDigits(
         string $digits,
     ): self
@@ -93,6 +94,9 @@ class ProgrammableVoiceRig extends AssertContext
         return $this->pushInput('gather', ['Digits' => $digits]);
     }
 
+    /**
+     * @throws Exception
+     */
     public function gatherSpeech(string $speechResult, float $confidence = 1.0): self
     {
         return $this->pushInput('gather', [
@@ -101,6 +105,9 @@ class ProgrammableVoiceRig extends AssertContext
         ]);
     }
 
+    /**
+     * @throws Exception
+     */
     public function dial(
         CallStatus $callStatus,
         ?string    $callSid = null,
@@ -118,6 +125,9 @@ class ProgrammableVoiceRig extends AssertContext
         ]);
     }
 
+    /**
+     * @throws Exception
+     */
     public function consumeInput(string $type): ?array
     {
         if (!isset($this->inputs[$type])) {
@@ -125,26 +135,6 @@ class ProgrammableVoiceRig extends AssertContext
         }
 
         return array_shift($this->inputs[$type]);
-    }
-
-    public function peekInput(string $type): ?array
-    {
-        if (!isset($this->inputs[$type])) {
-            throw new Exception("ProgrammableVoiceRig does not support $type input");
-        }
-
-        return $this->inputs[$type][0] ?? null;
-    }
-
-
-    public function setCustomTwimlHandler(string $tag, ?string $classReference): self
-    {
-        if (!$classReference) {
-            unset($this->customTwimlHandlers[$tag]);
-        } else {
-            $this->customTwimlHandlers[$tag] = $classReference;
-        }
-        return $this;
     }
 
     private function wrapPhoneNumber(PhoneNumber|string $phoneNumber): PhoneNumber
@@ -261,13 +251,13 @@ class ProgrammableVoiceRig extends AssertContext
             PHPUnitAssert::fail('Invalid Twiml response');
         }
         $this->isTwiml($doc);
-        $this->setAssertionContext($doc, $twiml);
+        $this->setAssertionContext($doc);
     }
 
     /**
-     * @param Closure(string $tag, string $url, string $method = 'POST', array $data = []): void $nextAction
+     * @param Closure(string, string, string, array):void $nextAction
      */
-    private function handleTwiml(Response $response, Closure $nextAction): void
+    private function handleTwiml(Closure $nextAction): void
     {
         $topLevelElements = $this->root->firstChild->childNodes;
 
@@ -290,7 +280,7 @@ class ProgrammableVoiceRig extends AssertContext
     public function assertTwilioHit(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
     {
         $alreadyHandled = false;
-        $this->handleTwiml($this->response, function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
+        $this->handleTwiml(function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
             if ($alreadyHandled) {
                 throw new Exception('Attempted to follow twiml more than once on the same response');
             }
@@ -311,7 +301,7 @@ class ProgrammableVoiceRig extends AssertContext
 
     public function assertCallEnded(): self
     {
-        $this->handleTwiml($this->response, function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
+        $this->handleTwiml(function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
             PHPUnitAssert::fail("Call did not complete, and was redirected to $method $url");
         });
 

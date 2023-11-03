@@ -1,54 +1,54 @@
 {
-    "name": "vehikl/laravel-twilio-programmable-voice-test-rig",
-    "description": "A laravel library for testing twilio programmable voice twiml flows",
-    "type": "library",
-    "require": {
-        "ext-simplexml": "*",
-        "php": "^8.1",
-        "phpunit/phpunit": "^10.1"
-    },
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Vehikl\\LaravelTwilioProgrammableVoiceTestRig\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Alex Barry",
-            "email": "a.barry@vehikl.com"
-        }
-    ],
-    "minimum-stability": "stable",
-    "require-dev": {
-        "orchestra/testbench": "8.12.3",
-        "twilio/sdk": "^7.11",
-        "nunomaduro/collision": "^7.8"
-    },
-    "config": {
-        "allow-plugins": {
-            "kylekatarnls/update-helper": true
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Workbench\\App\\": "workbench/app/",
-            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
-            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/",
-            "Tests\\": "tests/"
-        }
-    },
-    "scripts": {
-        "post-autoload-dump": [
-            "@clear",
-            "@prepare"
-        ],
-        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "build": "@php vendor/bin/testbench workbench:build --ansi",
-        "serve": [
-            "@build",
-            "@php vendor/bin/testbench serve"
-        ]
+  "name": "vehikl/laravel-twilio-programmable-voice-test-rig",
+  "description": "A laravel library for testing twilio programmable voice twiml flows",
+  "type": "library",
+  "require": {
+    "ext-dom": "*",
+    "php": "^8.1",
+    "phpunit/phpunit": "^10.1"
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Vehikl\\LaravelTwilioProgrammableVoiceTestRig\\": "src/"
     }
+  },
+  "authors": [
+    {
+      "name": "Alex Barry",
+      "email": "a.barry@vehikl.com"
+    }
+  ],
+  "minimum-stability": "stable",
+  "require-dev": {
+    "orchestra/testbench": "8.12.3",
+    "twilio/sdk": "^7.11",
+    "nunomaduro/collision": "^7.8"
+  },
+  "config": {
+    "allow-plugins": {
+      "kylekatarnls/update-helper": true
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Workbench\\App\\": "workbench/app/",
+      "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+      "Workbench\\Database\\Seeders\\": "workbench/database/seeders/",
+      "Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "post-autoload-dump": [
+      "@clear",
+      "@prepare"
+    ],
+    "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+    "prepare": "@php vendor/bin/testbench package:discover --ansi",
+    "build": "@php vendor/bin/testbench workbench:build --ansi",
+    "serve": [
+      "@build",
+      "@php vendor/bin/testbench serve"
+    ]
+  }
 }
