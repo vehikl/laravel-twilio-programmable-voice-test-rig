@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\AssertContext;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlApp;
@@ -22,6 +23,7 @@ class AnonymousDialingTest extends TestCase
                 ),
             ),
         ))
+            ->warnings()
             ->ring(from: '15554443322', to: '12223334455')
             ->assertSay('Dial North-American Number, then press pound')
             ->assertGather([
@@ -30,11 +32,15 @@ class AnonymousDialingTest extends TestCase
                 'finishOnKey' => '#',
                 'numDigits' => 12,
                 'actionOnEmptyResult' => false,
-            ], [
-                '<Say>hi</Say>'
             ])
+            ->assertElementChildren(function (AssertContext $context) {
+                return $context
+                    ->assertSay('hi');
+            })
+
             ->gatherDigits('5554443322#')
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
+
             ->assertTwilioHit(route('anonymous-dialing.dial'), byTwimlTag: "Gather")
             ->assertSay('Dialing 5 5 5 4 4 4 3 3 2 2, please wait')
             ->assertPause(1)
@@ -70,10 +76,7 @@ class AnonymousDialingTest extends TestCase
             ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
             ->assertTwilioHit(route('anonymous-dialing.failed'), byTwimlTag: "Redirect")
             ->assertSay('Please try again later')
-            ->assertTwimlContains('<Hangup/>', route('anonymous-dialing.completed'))
             ->assertHangup()
             ->assertCallEnded();
     }
-
-
 }

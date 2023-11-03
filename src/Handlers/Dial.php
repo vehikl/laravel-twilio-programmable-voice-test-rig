@@ -2,6 +2,9 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use Closure;
+use Exception;
+
 class Dial extends Element
 {
     public function isActionable(): bool
@@ -9,9 +12,14 @@ class Dial extends Element
         return true;
     }
 
-    public function runAction(Callable $nextAction): bool
+    /**
+     * @param Closure(string, string, string, array):void $nextAction
+     * @throws Exception
+     */
+    public function runAction(Closure $nextAction): bool
     {
-        if (!isset($this->element['action'])) {
+        $action = $this->attr('action');
+        if (!$action) {
             return false;
         }
 
@@ -20,7 +28,8 @@ class Dial extends Element
             return false;
         }
 
-        $nextAction('Dial', $this->element['action'], $this->element['method'] ?? 'POST', $input);
+        $method = $this->attr('method', 'POST');
+        $nextAction('Dial', $action, $method, $input);
         return true;
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\AssertContext;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlApp;
@@ -22,14 +23,20 @@ class MultipleStepTest extends TestCase
             ),
         ))
             ->ring(from: '15554443322', to: '12223334455')
+            // ->assertTwimlOrder([
+            //     fn (AssertContext $ctx) => $ctx->assertSay('Record your name'),
+            //     fn (AssertContext $ctx) => $ctx->assertRecord(),
+            //     fn (AssertContext $ctx) => $ctx->assertRedirect(route('multiple-step.emptyRecordingRetry')),
+            // ])
             ->assertTwimlOrder(['Say', 'Record', 'Redirect'])
             ->assertSay('Record your name')
-            ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
+            ->assertRecord(['action' => route('multiple-step.thanks')])
+            // ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->record(recordingUrl: 'file.mp3', recordingDuration: 5)
             ->assertTwilioHit(route('multiple-step.thanks'), byTwimlTag: 'Record')
             ->assertSay('Thank-you for recording your name')
-            ->assertTwimlContains('<Hangup/>')
+            ->assertHangup()
             ->assertCallEnded();
     }
 
@@ -46,7 +53,7 @@ class MultipleStepTest extends TestCase
         ))
             ->ring(from: '15554443322', to: '12223334455')
             ->assertSay('Record your name')
-            ->assertTwimlContains('<Record action="%s"/>', route('multiple-step.thanks'))
+            ->assertRecord(['action' => route('multiple-step.thanks')])
             ->assertTwimlContains('<Redirect method="POST">%s</Redirect>', route('multiple-step.emptyRecordingRetry'))
             ->assertTwilioHit(route('multiple-step.emptyRecordingRetry'))
             ->assertPlay('sad-trombone.mp3')

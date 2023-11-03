@@ -2,6 +2,8 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
+use Closure;
+
 class Redirect extends Element
 {
     public function isActionable(): bool
@@ -9,9 +11,14 @@ class Redirect extends Element
         return true;
     }
 
-    public function runAction(Callable $nextAction): bool
+    /**
+     * @param Closure(string, string, string, array):void $nextAction
+     */
+    public function runAction(Closure $nextAction): bool
     {
-        $nextAction('Redirect', (string)$this->element, $this->element['method'] ?? 'POST');
+        $uri = $this->element->textContent;
+        $method = strtoupper($this->attr('method', 'POST'));
+        $nextAction('Redirect', $uri, $method);
         return true;
     }
 }

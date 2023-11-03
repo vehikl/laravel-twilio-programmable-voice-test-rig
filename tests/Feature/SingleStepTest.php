@@ -23,6 +23,7 @@ class SingleStepTest extends TestCase
         ))
             ->ring(from: '15554443322', to: '12223334455')
             ->assertSay('Saying something here')
+            ->assertTwimlEquals('<Say>Saying something here</Say>')
             ->assertCallEnded();
     }
 }
