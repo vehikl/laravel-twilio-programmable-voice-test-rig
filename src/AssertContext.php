@@ -8,7 +8,6 @@ use DOMDocument;
 use DOMElement;
 use DOMNamedNodeMap;
 use PHPUnit\Framework\Assert;
-use Throwable;
 
 class AssertContext
 {

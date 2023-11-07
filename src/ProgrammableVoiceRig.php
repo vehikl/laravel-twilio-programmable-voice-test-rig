@@ -9,6 +9,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use PHPUnit\Framework\Assert as PHPUnitAssert;
+use PHPUnit\Framework\ExceptionWrapper;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
 class ProgrammableVoiceRig extends AssertContext
@@ -16,7 +19,8 @@ class ProgrammableVoiceRig extends AssertContext
     protected array $twilioCallParameters = [];
 
     public ?Request $request = null;
-    public ?Response $response = null;
+    // public ?Response $response = null;
+    public ?SymfonyResponse $response = null;
 
     protected array $inputs = [
         'record' => [],
@@ -247,8 +251,29 @@ class ProgrammableVoiceRig extends AssertContext
     private function parseTwiml(string $twiml): void
     {
         $doc = new DOMDocument();
-        if (!$doc->loadXML($twiml)) {
-            PHPUnitAssert::fail('Invalid Twiml response');
+        try {
+            if (!$doc->loadXML($twiml)) {
+                PHPUnitAssert::fail(sprintf(
+                    'Invalid Twiml response from %s:%s%s',
+                    $this->request->url(),
+                    PHP_EOL,
+                    $twiml,
+                ));
+            }
+        } catch (Throwable $e) {
+            PHPUnitAssert::fail(sprintf(
+                'Invalid Twiml response from %s%s %s%s%s%s%s%s%s',
+                PHP_EOL,
+                $this->request->method(),
+                $this->request->method() === 'GET' ? '' : $this->request->url(),
+                PHP_EOL,
+                json_encode($this->request->all(), JSON_PRETTY_PRINT),
+                PHP_EOL,
+                $twiml,
+                PHP_EOL,
+                $e->getMessage(),
+            ));
+            throw $e;
         }
         $this->isTwiml($doc);
         $this->setAssertionContext($doc);

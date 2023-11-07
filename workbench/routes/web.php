@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Workbench\App\Http\Controllers\AnonymousDialing;
+use Workbench\App\Http\Controllers\InvalidFlows;
 use Workbench\App\Http\Controllers\MultipleStep;
 use Workbench\App\Http\Controllers\SingleStep;
 
@@ -16,3 +17,6 @@ Route::post('/anonymous-dialing/dial', [AnonymousDialing::class, 'dial'])->name(
 Route::post('/anonymous-dialing/completed', [AnonymousDialing::class, 'completed'])->name('anonymous-dialing.completed');
 Route::post('/anonymous-dialing/failed', [AnonymousDialing::class, 'failed'])->name('anonymous-dialing.failed');
 // Add routes here...
+
+Route::post('/invalid-flows/json', [InvalidFlows::class, 'json'])->name('invalid-flows.json');
+Route::post('/invalid-flows/string', [InvalidFlows::class, 'string'])->name('invalid-flows.string');
