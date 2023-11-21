@@ -16,7 +16,9 @@ Route::post('/anonymous-dialing/gather', [AnonymousDialing::class, 'gather'])->n
 Route::post('/anonymous-dialing/dial', [AnonymousDialing::class, 'dial'])->name('anonymous-dialing.dial');
 Route::post('/anonymous-dialing/completed', [AnonymousDialing::class, 'completed'])->name('anonymous-dialing.completed');
 Route::post('/anonymous-dialing/failed', [AnonymousDialing::class, 'failed'])->name('anonymous-dialing.failed');
-// Add routes here...
 
 Route::post('/invalid-flows/json', [InvalidFlows::class, 'json'])->name('invalid-flows.json');
 Route::post('/invalid-flows/string', [InvalidFlows::class, 'string'])->name('invalid-flows.string');
+Route::post('/invalid-flows/redirect-not-found', [InvalidFlows::class, 'redirectNotFound'])->name('invalid-flows.redirectNotFound');
+Route::post('/invalid-flows/redirect-to-server-error', [InvalidFlows::class, 'redirectToServerError'])->name('invalid-flows.redirectToServerError');
+Route::post('/invalid-flows/server-error', [InvalidFlows::class, 'serverError'])->name('invalid-flows.serverError');

@@ -22,13 +22,14 @@ class AnonymousDialingTest extends TestCase
                 'actionOnEmptyResult' => false,
             ])
             ->assertChildren(function (ProgrammableVoiceRig $context) {
-                return $context->assertSay('Dial North-American Number, then press pound');
+                return $context
+                    ->assertSay('Dial North-American Number, then press pound')
+                    ->assertTextContentContains('pound');
             })
             ->withDigits('5554443322#')
             ->assertEndpoint(route('anonymous-dialing.dial'))
             ->assertSay('Dialing 5 5 5 4 4 4 3 3 2 2, please wait')
             ->assertPause(1)
-            ->dial(CallStatus::completed, duration: 30)
             ->assertDial('5554443322', ['action' => route('anonymous-dialing.completed'), 'method' => 'POST'])
             ->withAnswer()
             ->assertSay('Phone call completed')
