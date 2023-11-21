@@ -19,6 +19,7 @@ class Element
 
     /**
      * @param array<int,mixed> $customMapping
+     * @throws \ReflectionException
      */
     public static function fromElement(
         ProgrammableVoiceRig $rig,
