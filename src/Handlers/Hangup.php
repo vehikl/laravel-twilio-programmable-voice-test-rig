@@ -2,19 +2,14 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use Closure;
 use DOMElement;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 
 class Hangup extends Element
 {
-    /**
-     * @param Closure():ProgrammableVoiceRig $next
-     */
-    public function handle(Closure $next): ProgrammableVoiceRig
+    public function callStatus(CallStatus $previous): CallStatus
     {
-        $this->rig->setCallStatus('completed');
-        return $this->rig;
+        return CallStatus::completed;
     }
 
     public function nextElement(): ?DOMElement

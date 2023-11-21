@@ -13,6 +13,18 @@ class GatherEvent extends Event
         return $this->element->attr('input', 'dtmf');
     }
     /**
+     * @param array<string,mixed> $parameters
+     */
+    protected function navigate(array $parameters): ProgrammableVoiceRig
+    {
+        return $this->rig->navigate(
+            $this->element->attr('action', $this->rig->requestedUri),
+            $this->element->attr('method', 'POST'),
+            $parameters,
+        );
+    }
+
+    /**
      * @param Closure(ProgrammableVoiceRig):void $asserter
      */
     public function assertChildren(Closure $asserter): self
@@ -33,15 +45,11 @@ class GatherEvent extends Event
             ? ['Digits' => $digits]
             : [];
 
-        return $this->rig->navigate(
-            $this->element->attr('action'),
-            $this->element->attr('method', 'POST'),
-            [
-                'SpeechResult' => $speechResult,
-                'Confidence' => $confidence,
-                ...$digitAttributes,
-            ]
-        );
+        return $this->navigate([
+            'SpeechResult' => $speechResult,
+            'Confidence' => $confidence,
+            ...$digitAttributes,
+        ]);
     }
 
     public function withDtmf(string $digits): ProgrammableVoiceRig
@@ -52,11 +60,7 @@ class GatherEvent extends Event
             sprintf('Gather expected %s, but you gave it a dtmf', $this->getInput()),
         );
 
-        return $this->rig->navigate(
-            $this->element->attr('action'),
-            $this->element->attr('method', 'POST'),
-            ['Digits' => $digits],
-        );
+        return $this->navigate(['Digits' => $digits]);
     }
 
     public function withDigits(string $digits): ProgrammableVoiceRig

@@ -2,7 +2,6 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use Closure;
 use DOMElement;
 use ReflectionClass;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
@@ -11,15 +10,11 @@ use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 class Element
 {
     const MAP = [
-        'Response' => Response::class,
-        'Dial' => Dial::class,
-        'Gather' => Gather::class,
         'Hangup' => Hangup::class,
-        'Record' => Record::class,
+        'Pause' => Pause::class,
         'Redirect' => Redirect::class,
-        'Say' => NonActionableNoChildren::class,
-        'Play' => NonActionableNoChildren::class,
-        'Pause' => NonActionableNoChildren::class,
+        'Reject' => Reject::class,
+        'Response' => Response::class,
     ];
 
     /**
@@ -75,17 +70,8 @@ class Element
         return CallStatus::in_progress;
     }
 
-    /**
-     * @param Closure():ProgrammableVoiceRig $next
-     */
-    public function handle(Closure $next): ProgrammableVoiceRig
-    {
-        return $next();
-    }
-
     public function nextElement(): ?DOMElement
     {
-        return $this->element->nextElementSibling
-            ?? null;
+        return $this->element->nextElementSibling;
     }
 }
