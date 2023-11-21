@@ -30,7 +30,10 @@ class AnonymousDialingTest extends TestCase
             ->assertEndpoint(route('anonymous-dialing.dial'))
             ->assertSay('Dialing 5 5 5 4 4 4 3 3 2 2, please wait')
             ->assertPause(1)
-            ->assertDial('5554443322', ['action' => route('anonymous-dialing.completed'), 'method' => 'POST'])
+            ->assertDial('5554443322', [
+                'action' => route('anonymous-dialing.completed'),
+                'method' => 'POST'
+            ])
             ->withAnswer()
             ->assertSay('Phone call completed')
             ->assertHangup()
