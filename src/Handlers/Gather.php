@@ -3,21 +3,12 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
-use Exception;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 
 class Gather extends Element
 {
-    public function isActionable(): bool
-    {
-        return true;
-    }
-
-    /**
-     * @param Closure(string, string, string, array):void $nextAction
-     * @throws Exception
-     */
-    public function runAction(Closure $nextAction): bool
+    public function handle(Closure $next): ProgrammableVoiceRig
     {
         if (!$this->attr('action')) {
             $this->rig->warn('Detected gather without an action, which falls back to the current document. This can result in unexpected loops.');
@@ -28,12 +19,10 @@ class Gather extends Element
         $input = $this->rig->consumeInput('gather');
 
         if ($this->attr('actionOnEmptyResult', 'false') === 'false' && !$input) {
-            return false;
+            return $next();
         }
 
-        $nextAction('Gather', $action, $method, $input ?? []);
-        return true;
+        return $this->rig->navigate($action, $method, $input ?? [], 'Gather');
     }
 }
-
 

@@ -3,23 +3,23 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
-use Exception;
+use DOMElement;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Hangup extends Element
 {
-    public function isActionable(): bool
-    {
-        return true;
-    }
-
     /**
-     * @param Closure(string, string, string, array):void $nextAction
-     * @throws Exception
+     * @param Closure():ProgrammableVoiceRig $next
      */
-    public function runAction(Closure $nextAction): bool
+    public function handle(Closure $next): ProgrammableVoiceRig
     {
         $this->rig->setCallStatus('completed');
-        return true;
+        return $this->rig;
+    }
+
+    public function nextElement(): ?DOMElement
+    {
+        return null;
     }
 }
 

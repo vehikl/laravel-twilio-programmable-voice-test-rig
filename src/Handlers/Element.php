@@ -3,21 +3,34 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
-use DOMNode;
+use DOMElement;
 use ReflectionClass;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Element
 {
     const MAP = [
+        'Response' => Response::class,
         'Dial' => Dial::class,
         'Gather' => Gather::class,
         'Hangup' => Hangup::class,
         'Record' => Record::class,
         'Redirect' => Redirect::class,
+        'Say' => NonActionableNoChildren::class,
+        'Play' => NonActionableNoChildren::class,
+        'Pause' => NonActionableNoChildren::class,
     ];
 
-    public static function fromElement(ProgrammableVoiceRig $rig, DOMNode $element, ?self $parent = null, array $customMapping = []): self
+    /**
+     * @param array<int,mixed> $customMapping
+     */
+    public static function fromElement(
+        ProgrammableVoiceRig $rig,
+        DOMElement $element,
+        ?self $parent = null,
+        array $customMapping = [],
+    ): self
     {
         $class = $customMapping[$element->nodeName]
             ?? self::MAP[$element->nodeName]
@@ -32,7 +45,7 @@ class Element
 
     public function __construct(
         public ProgrammableVoiceRig $rig,
-        public DOMNode $element,
+        public DOMElement $element,
         public ?self $parent = null,
     )
     {
@@ -52,16 +65,27 @@ class Element
         return $attribute->nodeValue == $value;
     }
 
-    public function isActionable(): bool
+    public function text(): string
     {
-        return false;
+        return $this->element->textContent;
+    }
+
+    public function callStatus(CallStatus $previous): CallStatus
+    {
+        return CallStatus::in_progress;
     }
 
     /**
-     * @param Closure(string, string, string, array):void $nextAction
+     * @param Closure():ProgrammableVoiceRig $next
      */
-    public function runAction(Closure $nextAction): bool
+    public function handle(Closure $next): ProgrammableVoiceRig
     {
-        return false;
+        return $next();
+    }
+
+    public function nextElement(): ?DOMElement
+    {
+        return $this->element->nextElementSibling
+            ?? null;
     }
 }

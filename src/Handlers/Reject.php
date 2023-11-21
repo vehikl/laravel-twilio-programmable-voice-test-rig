@@ -4,14 +4,19 @@ namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
 use Closure;
 use DOMElement;
+use PHPUnit\Framework\Assert;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class Redirect extends Element
+class Reject extends Element
 {
     public function callStatus(CallStatus $previous): CallStatus
     {
-        return $previous;
+        Assert::assertNotEquals(CallStatus::in_progress, $previous, 'Cannot reject a call that has been interacted with');
+
+        return $this->attr('reason') === 'busy'
+            ? CallStatus::busy
+            : CallStatus::no_answer;
     }
 
     /**
@@ -19,13 +24,7 @@ class Redirect extends Element
      */
     public function handle(Closure $next): ProgrammableVoiceRig
     {
-        $uri = $this->element->textContent;
-        $method = strtoupper($this->attr('method', 'POST'));
-        if (!$uri) {
-            return $next();
-        }
-
-        return $this->rig->navigate($uri, $method, [], 'Redirect');
+        return $this->rig;
     }
 
     public function nextElement(): ?DOMElement
