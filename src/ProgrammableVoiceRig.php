@@ -196,6 +196,8 @@ class ProgrammableVoiceRig
         }
 
         $this->parameters['CallStatus'] = $callStatus->value;
+
+
         if ($this->twimlApp?->statusCallbackUrl) {
             $this->getResponse($this->makeRequest(
                 $this->twimlApp->statusCallbackUrl,
@@ -305,7 +307,6 @@ class ProgrammableVoiceRig
 
             if ($aHasKey && $bHasKey) {
                 if ($aValue != $bValue) {
-                    var_dump('value mismatch', [$aValue, $bValue]);
                     $result['values'] [] = $key;
                 }
             } elseif ($aHasKey) {

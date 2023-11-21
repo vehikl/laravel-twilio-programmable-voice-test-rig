@@ -11,6 +11,7 @@ Route::post('/single-step', [SingleStep::class, 'sayAndHangup'])->name('single-s
 Route::post('/multiple-step/record', [MultipleStep::class, 'record'])->name('multiple-step.record');
 Route::post('/multiple-step/thanks', [MultipleStep::class, 'thanks'])->name('multiple-step.thanks');
 Route::post('/multiple-step/empty-recording-retry', [MultipleStep::class, 'emptyRecordingRetry'])->name('multiple-step.emptyRecordingRetry');
+Route::post('/multiple-step/status-change', [MultipleStep::class, 'statusChange'])->name('multiple-step.statusChange');
 
 Route::post('/anonymous-dialing/gather', [AnonymousDialing::class, 'gather'])->name('anonymous-dialing.gather');
 Route::post('/anonymous-dialing/dial', [AnonymousDialing::class, 'dial'])->name('anonymous-dialing.dial');
