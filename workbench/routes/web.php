@@ -6,7 +6,9 @@ use Workbench\App\Http\Controllers\InvalidFlows;
 use Workbench\App\Http\Controllers\MultipleStep;
 use Workbench\App\Http\Controllers\SingleStep;
 
-Route::post('/single-step', [SingleStep::class, 'sayAndHangup'])->name('single-step');
+Route::post('/single-step/say-and-hangup', [SingleStep::class, 'sayAndHangup'])->name('single-step.sayAndHangup');
+Route::post('/single-step/reject', [SingleStep::class, 'reject'])->name('single-step.reject');
+Route::post('/single-step/ring', [SingleStep::class, 'ring'])->name('single-step.ring');
 
 Route::post('/multiple-step/record', [MultipleStep::class, 'record'])->name('multiple-step.record');
 Route::post('/multiple-step/thanks', [MultipleStep::class, 'thanks'])->name('multiple-step.thanks');

@@ -15,4 +15,32 @@ class SingleStep extends Controller
 
         return $voice;
     }
+
+    public function reject(Request $request): VoiceResponse
+    {
+        $voice = new VoiceResponse();
+        $voice->reject(['reason' => $request->input('reason')]);
+
+        return $voice;
+    }
+
+    public function ring(Request $request): VoiceResponse
+    {
+        
+        $voice = new VoiceResponse();
+        $voice->pause(['length' => 5]);
+        $voice->hangup();
+
+        return $voice;
+    }
+
+    public function redirectBlocksOtherInstructions(Request $request): VoiceResponse
+    {
+        
+        $voice = new VoiceResponse();
+        $voice->redirect(route('single-step.sayAndHangup'));
+        $voice->hangup();
+
+        return $voice;
+    }
 }

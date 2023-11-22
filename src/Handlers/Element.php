@@ -53,14 +53,6 @@ class Element
         return $node?->nodeValue ?? $fallback;
     }
 
-    public function hasAttr(string $name, ?string $value): bool
-    {
-        $attribute = $this->element->attributes->getNamedItem($name);
-        if (!$attribute) return false;
-        if (!$value) return true;
-        return $attribute->nodeValue == $value;
-    }
-
     public function text(): string
     {
         return $this->element->textContent;
