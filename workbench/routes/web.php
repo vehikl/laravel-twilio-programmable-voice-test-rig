@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Workbench\App\Http\Controllers\AnonymousDialing;
+use Workbench\App\Http\Controllers\GatherSpeech;
 use Workbench\App\Http\Controllers\InvalidFlows;
 use Workbench\App\Http\Controllers\MultipleStep;
 use Workbench\App\Http\Controllers\SingleStep;
@@ -25,3 +26,8 @@ Route::post('/invalid-flows/string', [InvalidFlows::class, 'string'])->name('inv
 Route::post('/invalid-flows/redirect-not-found', [InvalidFlows::class, 'redirectNotFound'])->name('invalid-flows.redirectNotFound');
 Route::post('/invalid-flows/redirect-to-server-error', [InvalidFlows::class, 'redirectToServerError'])->name('invalid-flows.redirectToServerError');
 Route::post('/invalid-flows/server-error', [InvalidFlows::class, 'serverError'])->name('invalid-flows.serverError');
+
+Route::post('/gather-speech/prompt', [GatherSpeech::class, 'prompt'])->name('gather-speech.prompt');
+Route::post('/gather-speech/result', [GatherSpeech::class, 'result'])->name('gather-speech.result');
+Route::post('/gather-speech/empty', [GatherSpeech::class, 'empty'])->name('gather-speech.empty');
+Route::post('/gather-speech/fail', [GatherSpeech::class, 'fail'])->name('gather-speech.fail');
