@@ -3,11 +3,8 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\AssertContext;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlApp;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\TwimlAppConfiguration;
 
 class AnonymousDialingTest extends TestCase
 {
@@ -15,17 +12,8 @@ class AnonymousDialingTest extends TestCase
     /** @test */
     public function itCanGatherDigitsAndMakeAPhoneCall(): void
     {
-        (new ProgrammableVoiceRig(
-            $this->app,
-            new TwimlApp(
-                voice: new TwimlAppConfiguration(
-                    requestUrl: route('anonymous-dialing.gather'),
-                ),
-            ),
-        ))
-            ->warnings()
-            ->ring(from: '15554443322', to: '12223334455')
-            ->assertSay('Dial North-American Number, then press pound')
+        (new ProgrammableVoiceRig($this->app))
+            ->phoneCall(from: '15554443322', to: '12223334455', endpoint: route('anonymous-dialing.gather'))
             ->assertGather([
                 'action' => route('anonymous-dialing.dial'),
                 'input' => 'dtmf',
@@ -33,20 +21,20 @@ class AnonymousDialingTest extends TestCase
                 'numDigits' => 12,
                 'actionOnEmptyResult' => false,
             ])
-            ->assertElementChildren(function (AssertContext $context) {
+            ->assertChildren(function (ProgrammableVoiceRig $context) {
                 return $context
-                    ->assertSay('hi');
+                    ->assertSay('Dial North-American Number, then press pound')
+                    ->assertTextContentContains('pound');
             })
-
-            ->gatherDigits('5554443322#')
-            ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
-
-            ->assertTwilioHit(route('anonymous-dialing.dial'), byTwimlTag: "Gather")
+            ->withDigits('5554443322#')
+            ->assertEndpoint(route('anonymous-dialing.dial'))
             ->assertSay('Dialing 5 5 5 4 4 4 3 3 2 2, please wait')
             ->assertPause(1)
-            ->assertDial('5554443322', ['action' => route('anonymous-dialing.completed'), 'method' => 'POST'])
-            ->dial(CallStatus::completed, duration: 30)
-            ->assertTwilioHit(route('anonymous-dialing.completed'), byTwimlTag: 'Dial')
+            ->assertDial('5554443322', [
+                'action' => route('anonymous-dialing.completed'),
+                'method' => 'POST'
+            ])
+            ->withAnswer()
             ->assertSay('Phone call completed')
             ->assertHangup()
             ->assertCallEnded();
@@ -55,17 +43,8 @@ class AnonymousDialingTest extends TestCase
     /** @test */
     public function itFailsIfProvidedNoGather(): void
     {
-        (new ProgrammableVoiceRig(
-            $this->app,
-            new TwimlApp(
-                voice: new TwimlAppConfiguration(
-                    requestUrl: route('anonymous-dialing.gather'),
-                ),
-            ),
-        ))
-            ->ring(from: '15554443322', to: '12223334455')
-            ->assertSay('Dial North-American Number, then press pound')
-            //->assertTwimlContains('<Gather action="%s" input="dtmf" finishOnKey="#" numDigits="12" actionOnEmptyResult="false"/>', route('anonymous-dialing.dial'))
+        (new ProgrammableVoiceRig($this->app))
+            ->phoneCall(from: '15554443322', to: '12223334455', endpoint: route('anonymous-dialing.gather'))
             ->assertGather([
                 'action' => route('anonymous-dialing.dial'),
                 'input' => 'dtmf',
@@ -73,8 +52,10 @@ class AnonymousDialingTest extends TestCase
                 'numDigits' => 12,
                 'actionOnEmptyResult' => false,
             ], true)
-            ->assertRedirect(route('anonymous-dialing.failed'), ['method' => 'POST'])
-            ->assertTwilioHit(route('anonymous-dialing.failed'), byTwimlTag: "Redirect")
+            ->assertChildren(function (ProgrammableVoiceRig $context) {
+                return $context->assertSay('Dial North-American Number, then press pound');
+            })
+            ->withNothing()
             ->assertSay('Please try again later')
             ->assertHangup()
             ->assertCallEnded();

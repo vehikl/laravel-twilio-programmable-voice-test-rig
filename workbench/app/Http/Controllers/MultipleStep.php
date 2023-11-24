@@ -4,6 +4,7 @@ namespace Workbench\App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Twilio\TwiML\VoiceResponse;
 
 class MultipleStep extends Controller
@@ -40,7 +41,12 @@ class MultipleStep extends Controller
         $this->voiceResponse->pause(['length' => 2]);
         $this->voiceResponse->say('Oops, we couldn\'t hear you, try again');
         $this->voiceResponse->redirect(route('multiple-step.record'), ['method' => 'POST']);
-        
+
         return $this->voiceResponse;
+    }
+
+    public function statusChange(Request $request): void
+    {
+        Cache::put('status-change', $request->input('CallStatus'));
     }
 }

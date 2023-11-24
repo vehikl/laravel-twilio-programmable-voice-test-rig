@@ -2,22 +2,31 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 
-use Closure;
-use DOMNode;
+use DOMElement;
 use ReflectionClass;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
 class Element
 {
     const MAP = [
-        'Dial' => Dial::class,
-        'Gather' => Gather::class,
         'Hangup' => Hangup::class,
-        'Record' => Record::class,
+        'Pause' => Pause::class,
         'Redirect' => Redirect::class,
+        'Reject' => Reject::class,
+        'Response' => Response::class,
     ];
 
-    public static function fromElement(ProgrammableVoiceRig $rig, DOMNode $element, ?self $parent = null, array $customMapping = []): self
+    /**
+     * @param array<int,mixed> $customMapping
+     * @throws \ReflectionException
+     */
+    public static function fromElement(
+        ProgrammableVoiceRig $rig,
+        DOMElement $element,
+        ?self $parent = null,
+        array $customMapping = [],
+    ): self
     {
         $class = $customMapping[$element->nodeName]
             ?? self::MAP[$element->nodeName]
@@ -32,7 +41,7 @@ class Element
 
     public function __construct(
         public ProgrammableVoiceRig $rig,
-        public DOMNode $element,
+        public DOMElement $element,
         public ?self $parent = null,
     )
     {
@@ -44,24 +53,18 @@ class Element
         return $node?->nodeValue ?? $fallback;
     }
 
-    public function hasAttr(string $name, ?string $value): bool
+    public function text(): string
     {
-        $attribute = $this->element->attributes->getNamedItem($name);
-        if (!$attribute) return false;
-        if (!$value) return true;
-        return $attribute->nodeValue == $value;
+        return $this->element->textContent;
     }
 
-    public function isActionable(): bool
+    public function callStatus(CallStatus $previous): CallStatus
     {
-        return false;
+        return CallStatus::in_progress;
     }
 
-    /**
-     * @param Closure(string, string, string, array):void $nextAction
-     */
-    public function runAction(Closure $nextAction): bool
+    public function nextElement(): ?DOMElement
     {
-        return false;
+        return $this->element->nextElementSibling;
     }
 }

@@ -5,7 +5,7 @@ namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers;
 use DOMElement;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
 
-class Redirect extends Element
+class Response extends Element
 {
     public function callStatus(CallStatus $previous): CallStatus
     {
@@ -14,7 +14,6 @@ class Redirect extends Element
 
     public function nextElement(): ?DOMElement
     {
-        return null;
+        return $this->element->firstElementChild;
     }
 }
-

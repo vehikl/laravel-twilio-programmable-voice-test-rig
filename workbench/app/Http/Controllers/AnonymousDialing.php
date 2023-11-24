@@ -17,7 +17,6 @@ class AnonymousDialing extends Controller
 
     public function gather(): VoiceResponse
     {
-        $this->voiceResponse->say('Dial North-American Number, then press pound');
         $gather = $this->voiceResponse->gather([
             'action' => route('anonymous-dialing.dial'),
             'input' => 'dtmf',
@@ -25,21 +24,10 @@ class AnonymousDialing extends Controller
             'numDigits' => 12,
             'actionOnEmptyResult' => false,
         ]);
-        $gather->say('hi');
-        $this->voiceResponse->redirect(
-            route('anonymous-dialing.failed'),
-            ['method' => 'POST']
-        );
+        $gather->say('Dial North-American Number, then press pound');
+        $this->voiceResponse->say('Please try again later');
+        $this->voiceResponse->hangup();
 
-        /*
-         <?xml 1.0?>
-        <Response>
-            <Say>yo wuddup</Say>
-            <Gather action="https://site.com/anonymous-dailing/dial" input="dtmf" finishOnKey="#" ..../>
-            <Redirect .../>
-        </Response>
-
-         */
 
         return $this->voiceResponse;
     }
@@ -72,12 +60,4 @@ class AnonymousDialing extends Controller
 
         return $this->voiceResponse;
     }
-
-    public function failed(): VoiceResponse
-    {
-        $this->voiceResponse->say('Please try again later');
-        $this->voiceResponse->hangup();
-        return $this->voiceResponse;
-    }
-
 }

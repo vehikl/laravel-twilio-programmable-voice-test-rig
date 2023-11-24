@@ -3,142 +3,49 @@
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
 use Closure;
+use DOMAttr;
 use DOMDocument;
-use Exception;
+use DOMElement;
+use DOMNamedNodeMap;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use PHPUnit\Framework\Assert as PHPUnitAssert;
-use PHPUnit\Framework\ExceptionWrapper;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use PHPUnit\Framework\Assert;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\DialEvent;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\GatherEvent;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\RecordingEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
-class ProgrammableVoiceRig extends AssertContext
+class ProgrammableVoiceRig
 {
-    protected array $twilioCallParameters = [];
+    protected array $parameters = [];
 
-    public ?Request $request = null;
-    // public ?Response $response = null;
-    public ?SymfonyResponse $response = null;
+    public string $requestedUri = '/';
+    public string $requestedMethod = 'POST';
+    public array $requestedBody = [];
+    public ?Response $response = null;
+    protected ?DOMDocument $document = null;
 
-    protected array $inputs = [
-        'record' => [],
-        'gather' => [],
-        'dial' => [],
-    ];
+    public ?Element $previous = null;
+    public ?Element $current = null;
 
-    private bool $withWarnings = false;
+    protected ?TwimlApp $twimlApp = null;
 
-
-    public function __construct(protected Application $app, protected TwimlApp $twimlApp, string $direction = 'inbound', CallStatus $callStatus = CallStatus::ringing)
+    /**
+     * @param Application $app
+     * @param string|null $accountSid
+     * @param string|null $callSid
+     */
+    public function __construct(protected Application $app, ?string $accountSid = null, ?string $callSid = null)
     {
-        $this->twilioCallParameters = [
-            'AccountSid' => sprintf('AC%s', fake()->uuid),
-            'CallSid' => sprintf('CA%s', fake()->uuid),
-            'CallStatus' => $callStatus->value,
-            'ApiVersion' => '',
-            'Direction' => $direction,
+        $this->parameters = [
+            'AccountSid' => $accountSid ?? sprintf('AC%s', fake()->uuid),
+            'CallSid' => $callSid ?? sprintf('CA%s', fake()->uuid),
+            'CallStatus' => CallStatus::ringing->value,
+            'ApiVersion' => '2010-04-01',
+            'Direction' => 'inbound',
         ];
-    }
-
-    public function warnings(bool $toggle = true): self
-    {
-        $this->withWarnings = $toggle;
-        return $this;
-    }
-
-    public function warn(string $format, mixed ...$replacements): void
-    {
-        if (!$this->withWarnings) return;
-        echo sprintf('WARNING: %s%s', sprintf($format, ...$replacements), PHP_EOL);
-    }
-
-    /**
-     * @param array<string,mixed> $payload
-     * @throws Exception
-     */
-    private function pushInput(string $type, array $payload): self
-    {
-        if (!isset($this->inputs[$type])) {
-            throw new Exception("ProgrammableVoiceRig does not support $type input");
-        }
-
-        $this->inputs[$type] [] = array_filter(
-            $payload,
-            fn($value) => $value !== null,
-        );
-
-        return $this;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function record(
-        string  $recordingUrl,
-        int     $recordingDuration,
-        ?string $digits = null,
-    ): self
-    {
-        return $this->pushInput('record', [
-            'RecordingUrl' => $recordingUrl,
-            'RecordingDuration' => $recordingDuration,
-            'Digits' => $digits
-        ]);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function gatherDigits(
-        string $digits,
-    ): self
-    {
-        return $this->pushInput('gather', ['Digits' => $digits]);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function gatherSpeech(string $speechResult, float $confidence = 1.0): self
-    {
-        return $this->pushInput('gather', [
-            'SpeechResult' => $speechResult,
-            'Confidence' => $confidence,
-        ]);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function dial(
-        CallStatus $callStatus,
-        ?string    $callSid = null,
-        int        $duration = 60,
-        bool       $bridged = true,
-        ?string    $recordingUrl = null,
-    ): self
-    {
-        return $this->pushInput('dial', [
-            'DialCallStatus' => $callStatus->value,
-            'DialCallSid' => $callSid ?? ('CA' . fake()->uuid),
-            'DialCallDuration' => $duration,
-            'DialBridged' => $bridged,
-            'RecordingUrl' => $recordingUrl,
-        ]);
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function consumeInput(string $type): ?array
-    {
-        if (!isset($this->inputs[$type])) {
-            throw new Exception("ProgrammableVoiceRig does not support $type input");
-        }
-
-        return array_shift($this->inputs[$type]);
     }
 
     private function wrapPhoneNumber(PhoneNumber|string $phoneNumber): PhoneNumber
@@ -148,19 +55,27 @@ class ProgrammableVoiceRig extends AssertContext
             : $phoneNumber;
     }
 
-    public function from(PhoneNumber|string $phoneNumber): self
+    public function from(PhoneNumber|string|null $phoneNumber): self
     {
-        $this->twilioCallParameters = array_merge(
-            $this->twilioCallParameters,
+        if (!$phoneNumber) {
+            return $this;
+        }
+
+        $this->parameters = array_merge(
+            $this->parameters,
             $this->wrapPhoneNumber($phoneNumber)->toParameters('From'),
         );
         return $this;
     }
 
-    public function to(PhoneNumber|string $phoneNumber): self
+    public function to(PhoneNumber|string|null $phoneNumber): self
     {
-        $this->twilioCallParameters = array_merge(
-            $this->twilioCallParameters,
+        if (!$phoneNumber) {
+            return $this;
+        }
+
+        $this->parameters = array_merge(
+            $this->parameters,
             $this->wrapPhoneNumber($phoneNumber)->toParameters('To'),
         );
         return $this;
@@ -168,176 +83,403 @@ class ProgrammableVoiceRig extends AssertContext
 
     public function forwardedFrom(string|PhoneNumber|null $phoneNumber): self
     {
-        if ($phoneNumber === null) {
+        if (!$phoneNumber) {
             return $this;
         }
 
-        $this->twilioCallParameters = array_merge(
-            $this->twilioCallParameters,
+        $this->parameters = array_merge(
+            $this->parameters,
             $this->wrapPhoneNumber($phoneNumber)->toParameters('ForwardedFrom'),
         );
         return $this;
     }
 
-
-    /**
-     * @param array<int,mixed> $extraData
-     * @throws Exception
-     */
-    private function handleRequest(string $url, string $method = 'POST', array $extraData = [], bool $skipNavigation = false): Response
+    protected function initializeFromDocument(string|DOMDocument $xml): ?DOMElement
     {
-        $parameters = [...$this->twilioCallParameters, ...$extraData];
-
-        $request = Request::create($url, $method, $parameters);
-        $response = $this->app->handle($request);
-
-        if (!$skipNavigation) {
-            $this->request = $request;
-            $this->response = $response;
-            $this->parseTwiml($response->getContent());
+        if (is_string($xml)) {
+            $document = new DOMDocument();
+            try {
+                if ($document->loadXML($xml)) {
+                    return $this->initializeFromDocument($document);
+                }
+            } catch (Throwable $exception) {
+                return null;
+            }
         }
-
-        return $response;
-    }
-
-
-    /**
-     * @throws Exception
-     */
-    public function setCallStatus(CallStatus|string $callStatus): void
-    {
-        $status = is_string($callStatus)
-            ? CallStatus::tryFrom($callStatus)
-            : $callStatus;
-
-        if ($this->twilioCallParameters['CallStatus'] === $status->value) {
-            return;
-        }
-        $this->twilioCallParameters['CallStatus'] = $status->value;
-        if ($this->twimlApp->voice->statusCallbackUrl) {
-            $this->handleRequest($this->twimlApp->voice->statusCallbackUrl, $this->twimlApp->voice->statusCallbackMethod, skipNavigation: true);
-        }
+        $this->document = $xml;
+        return $xml->firstElementChild;
     }
 
     /**
-     * @throws Exception
+     * @param array<string,mixed> $body
      */
-    public function ring(string|PhoneNumber $from, string|PhoneNumber $to, string|PhoneNumber|null $forwardedFrom = null): self
+    public function navigate(string $url, string $method, array $body = []): self
     {
-        $this->from($from)->to($to)->forwardedFrom($forwardedFrom);
-        $voiceApp = $this->twimlApp->voice;
+        $parameters = [...$this->parameters, ...$body];
+        $request = $this->makeRequest($url, $method, $parameters);
+        $this->response = $this->getResponse($request);
 
-        if (!$voiceApp) {
-            PHPUnitAssert::fail('Unable to make a call, voice app not configured');
+        if ($this->response->getStatusCode() >= 500 && $this->twimlApp->fallbackUrl) {
+            $request = $this->makeRequest($this->twimlApp->fallbackUrl, $this->twimlApp->fallbackMethod, [...$this->parameters, ...$body]);
+            $this->response = $this->getResponse($request);
         }
 
-        $this->setCallStatus(CallStatus::in_progress);
-
-        $this->response = $this->handleRequest($this->twimlApp->voice->requestUrl, $this->twimlApp->voice->requestMethod);
+        if ($this->response->isOk()) {
+            return $this->navigatedTo(
+                $url,
+                $method,
+                $body,
+                $this->initializeFromDocument($this->response->getContent()),
+            );
+        }
 
         return $this;
     }
 
     /**
-     * @param Closure(Request $req, Response): void $callback
+     * @param array<string,mixed> $body
+     */
+    public function navigatedTo(string $url, string $method, array $body = [], ?DOMElement $current = null): self
+    {
+        $this->previous = $this->current;
+        $this->current = $current ? Element::fromElement($this, $current) : null;
+        $this->requestedUri = $url;
+        $this->requestedMethod = $method;
+        $this->requestedBody = $body;
+
+        return $this;
+    }
+
+    /**
+     * @param array<string,mixed> $body
+     */
+    private function makeRequest(string $url, string $method, array $body = []): Request
+    {
+        $parameters = [...$this->parameters, ...$body];
+
+        return Request::create($url, $method, $parameters);
+    }
+
+
+    private function getResponse(Request $request): Response
+    {
+        return $this->app->handle($request);
+    }
+
+    public function assertSuccessful(): self
+    {
+        Assert::assertNotNull($this->response, 'Request not sent');
+        Assert::assertTrue($this->response->isOk(), 'Request was not successful');
+        return $this;
+    }
+
+    public function assertInvalidResponse(): self
+    {
+        Assert::assertNull($this->document, 'Expected to have invalid xml document, but it was valid');
+        Assert::assertNull($this->current, 'Expected to have invalid xml current element, but it was valid');
+        Assert::assertNotEquals('Response', $this->document?->firstElementChild?->tagName, 'Expected to not have a valid Twiml response, but it resembles twiml');
+        return $this;
+    }
+
+    public function assertValidResponse(): self
+    {
+        Assert::assertNotNull($this->document, 'Expected to have a valid xml document, but it was invalid');
+        Assert::assertNotNull($this->current, 'Expected to have a valid xml current element, but it was invalid');
+        Assert::assertEquals('Response', $this->document->firstElementChild->tagName, 'Expected document to be wrapped in <Response>, but it was not');
+        return $this;
+    }
+
+    public function setCallStatus(CallStatus $callStatus): self
+    {
+        if ($this->parameters['CallStatus'] == $callStatus->value) {
+            return $this;
+        }
+
+        $this->parameters['CallStatus'] = $callStatus->value;
+
+
+        if ($this->twimlApp?->statusCallbackUrl) {
+            $this->getResponse($this->makeRequest(
+                $this->twimlApp->statusCallbackUrl,
+                $this->twimlApp->statusCallbackMethod
+            ));
+        }
+
+        return $this;
+    }
+
+    public function phoneCall(
+        string|PhoneNumber|null $from = null,
+        string|PhoneNumber|null $to = null,
+        string|PhoneNumber|null $forwardedFrom = null,
+        string|TwimlApp|null    $endpoint = null,
+    ): self
+    {
+        if ($from) {
+            $this->from($from);
+        }
+        if ($to) {
+            $this->to($to);
+        }
+        if ($forwardedFrom) {
+            $this->forwardedFrom($forwardedFrom);
+        }
+
+        Assert::assertNotNull($endpoint, 'phoneCall must provide an endpoint');
+
+        $this->twimlApp = is_string($endpoint)
+            ? new TwimlApp($endpoint)
+            : $endpoint;
+
+        return $this->navigate(
+            $this->twimlApp->requestUrl,
+            $this->twimlApp->requestMethod,
+        );
+    }
+
+    /**
+     * @param Closure(ProgrammableVoiceRig):void $callback
      */
     public function tap(Closure $callback): self
     {
-        $callback($this->request, $this->response);
+        $callback($this);
 
-        return $this;
-    }
-
-    private function parseTwiml(string $twiml): void
-    {
-        $doc = new DOMDocument();
-        try {
-            if (!$doc->loadXML($twiml)) {
-                PHPUnitAssert::fail(sprintf(
-                    'Invalid Twiml response from %s:%s%s',
-                    $this->request->url(),
-                    PHP_EOL,
-                    $twiml,
-                ));
-            }
-        } catch (Throwable $e) {
-            PHPUnitAssert::fail(sprintf(
-                'Invalid Twiml response from %s%s %s%s%s%s%s%s%s',
-                PHP_EOL,
-                $this->request->method(),
-                $this->request->method() === 'GET' ? '' : $this->request->url(),
-                PHP_EOL,
-                json_encode($this->request->all(), JSON_PRETTY_PRINT),
-                PHP_EOL,
-                $twiml,
-                PHP_EOL,
-                $e->getMessage(),
-            ));
-            throw $e;
-        }
-        $this->isTwiml($doc);
-        $this->setAssertionContext($doc);
-    }
-
-    /**
-     * @param Closure(string, string, string, array):void $nextAction
-     */
-    private function handleTwiml(Closure $nextAction): void
-    {
-        $topLevelElements = $this->root->firstChild->childNodes;
-
-        foreach ($topLevelElements as $child) {
-            $handler = Element::fromElement($this, $child);
-            if (!$handler->isActionable()) continue;
-            if ($handler->runAction($nextAction)) {
-                return;
-            }
-
-        }
-        $this->setCallStatus('completed');
-    }
-
-    private function isTwiml(DOMDocument $doc): void
-    {
-        PHPUnitAssert::assertEquals('Response', $doc->firstChild->nodeName);
-    }
-
-    public function assertTwilioHit(string $expectedUri, string $expectedMethod = 'POST', ?string $byTwimlTag = null): self
-    {
-        $alreadyHandled = false;
-        $this->handleTwiml(function (string $tag, string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled, $expectedUri, $expectedMethod, $byTwimlTag) {
-            if ($alreadyHandled) {
-                throw new Exception('Attempted to follow twiml more than once on the same response');
-            }
-
-            PHPUnitAssert::assertEquals("$expectedMethod $expectedUri", "$method $url", 'Unexpected twilio redirect');
-            if ($byTwimlTag) {
-                PHPUnitAssert::assertEquals($byTwimlTag, $tag);
-            }
-
-            $this->response = $this->handleRequest($url, $method, $data);
-            $alreadyHandled = true;
-        });
-        if (!$alreadyHandled) {
-            PHPUnitAssert::fail("Expected redirect to $expectedMethod $expectedUri, but no action or redirect found in twiml");
-        }
         return $this;
     }
 
     public function assertCallEnded(): self
     {
-        $this->handleTwiml(function (string $url, string $method = 'POST', array $data = []) use (&$alreadyHandled) {
-            PHPUnitAssert::fail("Call did not complete, and was redirected to $method $url");
-        });
+        Assert::assertNull($this->current?->nextElement(), 'Call has not ended, there is still twiml to execute');
 
-        PHPUnitAssert::assertContains($this->getCallStatus(), [
-            CallStatus::busy,
-            CallStatus::failed,
-            CallStatus::canceled,
-            CallStatus::completed,
-            CallStatus::no_answer
-        ]);
+        return $this;
+    }
 
+    public function assertRejected(?Rejection $reason = null): self
+    {
+        Assert::assertEquals($this->parameters['Direction'] ?? '', 'inbound', 'Twilio does not allow rejections unless the call is inbound');
+        $attributes = [];
+        if ($reason) {
+            $attributes['reason'] = $reason->value;
+        }
+        return $this->assertNextElement('Reject', $attributes);
+    }
+
+    public function assertNotInService(): self
+    {
+        return $this->assertRejected(Rejection::rejected);
+
+    }
+
+    public function assertBusy(): self
+    {
+        return $this->assertRejected(Rejection::busy);
+    }
+
+    private function domAttributesToArray(DOMNamedNodeMap $attributes): array
+    {
+        $attrs = [];
+        foreach ($attributes->getIterator() as $attribute) {
+            /** @var DOMAttr $attribute */
+            $attrs[$attribute->nodeName] = $attribute->nodeValue;
+        }
+        return $attrs;
+    }
+
+    protected function compareObjects(array $a, array $b): array
+    {
+        $keys = collect($a)->concat($b)->keys()->unique();
+
+        $result = [
+            'values' => [],
+            'missing' => [],
+        ];
+        foreach ($keys as $key) {
+            $aHasKey = isset($a[$key]);
+            $aValue = $a[$key] ?? null;
+            $aValue = is_bool($aValue)
+                ? ($aValue ? 'true' : 'false')
+                : $aValue;
+            $bHasKey = isset($b[$key]);
+            $bValue = $b[$key] ?? null;
+            $bValue = is_bool($bValue)
+                ? ($bValue ? 'true' : 'false')
+                : $bValue;
+
+            if ($aHasKey && $bHasKey) {
+                if ($aValue != $bValue) {
+                    $result['values'] [] = $key;
+                }
+            } elseif ($aHasKey) {
+                $result['missing'] [] = $key . ' b';
+
+            } elseif ($bHasKey) {
+                $result['missing'] [] = $key . ' a';
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<string,mixed> $expectedAttributes
+     */
+    private function allAttributesExist(array $expectedAttributes, DOMNamedNodeMap $attributes): bool
+    {
+        $domAttrs = $this->domAttributesToArray($attributes);
+        $results = $this->compareObjects($expectedAttributes, $domAttrs);
+        Assert::assertCount(0, $results['missing'], 'Value missing on ' . implode(', ', $results['missing']));
+        Assert::assertCount(0, $results['values'], 'Value mismatch on ' . implode(', ', $results['values']));
+        return count($results['values']) === 0
+            && count($results['missing']) === 0;
+    }
+
+    protected function advanceTwiml(): self
+    {
+        $element = $this->current?->nextElement();
+        $this->current = null;
+
+        if ($element) {
+            $this->current = Element::fromElement($this, $element);
+        }
+
+        $this->setCallStatus(
+            $this->current->callStatus(CallStatus::tryFrom($this->parameters['CallStatus']))
+        );
+
+        return $this;
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public
+    function assertNextElement(string $tagName, array $attributes = [], bool $exactAttributes = false): self
+    {
+        $this->advanceTwiml();
+
+        Assert::assertEquals($tagName, $this->current->element->tagName);
+        Assert::assertTrue($this->allAttributesExist($attributes, $this->current->element->attributes), 'Missing attributes on ' . $tagName);
+        if ($exactAttributes) {
+            Assert::assertEquals(count($attributes), $this->current->element->attributes->count(), 'Attributes are not an exact match');
+        }
+        return $this;
+    }
+
+    public function assertTextContent(string $body): self
+    {
+        Assert::assertEquals($body, $this->current?->element?->textContent);
+        return $this;
+    }
+
+    public function assertTextContentContains(string $body): self
+    {
+        Assert::assertStringContainsString($body, $this->current?->element?->textContent);
+        return $this;
+    }
+
+    /**
+     * @param Closure(ProgrammableVoiceRig):void $asserter
+     */
+    public function assertElementChildren(Closure $asserter): self
+    {
+        try {
+            $nop = $this->document->createElement('Nop');
+            $this->current->element->prepend($nop);
+            $context = (new ProgrammableVoiceRig($this->app, $this->parameters['AccountSid'], $this->parameters['CallSid']))
+                ->navigatedTo($this->requestedUri, $this->requestedMethod, $this->requestedBody, $nop);
+
+            $asserter($context);
+
+            $nop->remove();
+        } catch (\DOMException $exception) {
+            Assert::fail('Unable to assert on children');
+        }
+
+        return $this;
+    }
+
+    public function assertSay(string $text): self
+    {
+        return $this->assertNextElement('Say', [], true)
+            ->assertTextContent($text);
+    }
+
+    public function assertPlay(string $file): self
+    {
+        return $this->assertNextElement('Play', [])
+            ->assertTextContent($file);
+    }
+
+    public function assertPause(int $seconds): self
+    {
+        return $this->assertNextElement('Pause', ['length' => $seconds], true);
+    }
+
+    /**
+     * @param array<int,mixed> $attributes
+     */
+    public function assertDial(string $phoneNumber, array $attributes = [], bool $exactAttributes = false): DialEvent
+    {
+        return new DialEvent(
+            $this
+                ->assertNextElement('Dial', $attributes, $exactAttributes)
+                ->assertTextContent($phoneNumber),
+            $this->current,
+        );
+    }
+
+    /**
+     * @param string $uri
+     * @param string $method
+     * @param bool $exactAttributes
+     * @return ProgrammableVoiceRig
+     */
+    public function assertRedirect(string $uri, string $method = 'POST', bool $exactAttributes = false): self
+    {
+        return $this
+            ->assertNextElement('Redirect', ['method' => $method], $exactAttributes)
+            ->assertTextContent($uri)
+            ->navigate($this->current->text(), $this->current->attr('method', 'POST'));
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertGather(array $attributes = [], bool $exactAttributes = false): GatherEvent
+    {
+        return new GatherEvent(
+            $this->assertNextElement('Gather', $attributes, $exactAttributes),
+            $this->current,
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $attributes
+     */
+    public function assertRecord(array $attributes = [], bool $exactAttributes = false): RecordingEvent
+    {
+        return new RecordingEvent(
+            $this->assertNextElement('Record', $attributes, $exactAttributes),
+            $this->current,
+        );
+    }
+
+    public function assertCallStatus(CallStatus $expectedCallStatus): self
+    {
+        Assert::assertEquals($expectedCallStatus->value, $this->parameters['CallStatus']);
+
+        return $this;
+    }
+
+    public function assertHangup(): self
+    {
+        return $this->assertNextElement('Hangup');
+    }
+
+    public function assertEndpoint(string $uri, string $method = 'POST'): self
+    {
+        Assert::assertEquals($uri, $this->requestedUri, sprintf('Expected endpoint to be %s, but it was %s', $uri, $this->requestedUri));
+        Assert::assertEquals($method, $this->requestedMethod, sprintf('Expected endpoint method to be %s, but it was %s', $method, $this->requestedMethod));
         return $this;
     }
 }
