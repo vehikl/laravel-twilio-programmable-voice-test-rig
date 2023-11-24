@@ -4,8 +4,7 @@
   "type": "library",
   "require": {
     "ext-dom": "*",
-    "php": "^8.1",
-    "phpunit/phpunit": "^9"
+    "php": "^8.1"
   },
   "license": "MIT",
   "autoload": {
@@ -23,7 +22,8 @@
   "require-dev": {
     "orchestra/testbench": "8.12.3",
     "twilio/sdk": "^7.11",
-    "nunomaduro/collision": "^6"
+    "nunomaduro/collision": "^6",
+    "phpunit/phpunit": "^9"
   },
   "config": {
     "allow-plugins": {
