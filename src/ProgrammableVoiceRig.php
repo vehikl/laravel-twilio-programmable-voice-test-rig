@@ -274,63 +274,47 @@ class ProgrammableVoiceRig
     {
         return $this->assertRejected(Rejection::busy);
     }
-
+    /**
+     * @return array<string,mixed>
+     */
     private function domAttributesToArray(DOMNamedNodeMap $attributes): array
     {
         $attrs = [];
         foreach ($attributes->getIterator() as $attribute) {
             /** @var DOMAttr $attribute */
-            $attrs[$attribute->nodeName] = $attribute->nodeValue;
+            $value = $attribute->nodeValue;
+            if (is_numeric($value)) {
+                $value = (int)$value;
+            } elseif ($value === 'false' || $value === 'true') {
+                $value = $value === 'true';
+            }
+            $attrs[$attribute->nodeName] = $value;
         }
         return $attrs;
     }
 
-    protected function compareObjects(array $a, array $b): array
+    /**
+     * @param array<string,mixed> $expected
+     * @param array<string,mixed> $actual
+     * @return array<string,array>
+     */
+    protected function assertAssociativeArraysAreSimilar(array $expected, array $actual, bool $isExactMatch = false): void
     {
-        $keys = collect($a)->concat($b)->keys()->unique();
-
-        $result = [
-            'values' => [],
-            'missing' => [],
-        ];
-        foreach ($keys as $key) {
-            $aHasKey = isset($a[$key]);
-            $aValue = $a[$key] ?? null;
-            $aValue = is_bool($aValue)
-                ? ($aValue ? 'true' : 'false')
-                : $aValue;
-            $bHasKey = isset($b[$key]);
-            $bValue = $b[$key] ?? null;
-            $bValue = is_bool($bValue)
-                ? ($bValue ? 'true' : 'false')
-                : $bValue;
-
-            if ($aHasKey && $bHasKey) {
-                if ($aValue != $bValue) {
-                    $result['values'] [] = $key;
-                }
-            } elseif ($aHasKey) {
-                $result['missing'] [] = $key . ' b';
-
-            } elseif ($bHasKey) {
-                $result['missing'] [] = $key . ' a';
-            }
+        if ($isExactMatch) {
+            Assert::assertEquals(
+                $expected,
+                $actual,
+            );
         }
 
-        return $result;
-    }
-
-    /**
-     * @param array<string,mixed> $expectedAttributes
-     */
-    private function allAttributesExist(array $expectedAttributes, DOMNamedNodeMap $attributes): bool
-    {
-        $domAttrs = $this->domAttributesToArray($attributes);
-        $results = $this->compareObjects($expectedAttributes, $domAttrs);
-        Assert::assertCount(0, $results['missing'], 'Value missing on ' . implode(', ', $results['missing']));
-        Assert::assertCount(0, $results['values'], 'Value mismatch on ' . implode(', ', $results['values']));
-        return count($results['values']) === 0
-            && count($results['missing']) === 0;
+        $partial = [];
+        foreach ($expected as $key => $_value) {
+            if (!isset($actual[$key])) {
+                continue;
+            }
+            $partial[$key] = $actual[$key];
+        }
+        Assert::assertEquals($expected, $partial);
     }
 
     protected function advanceTwiml(): self
@@ -358,10 +342,10 @@ class ProgrammableVoiceRig
         $this->advanceTwiml();
 
         Assert::assertEquals($tagName, $this->current->element->tagName);
-        Assert::assertTrue($this->allAttributesExist($attributes, $this->current->element->attributes), 'Missing attributes on ' . $tagName);
-        if ($exactAttributes) {
-            Assert::assertEquals(count($attributes), $this->current->element->attributes->count(), 'Attributes are not an exact match');
-        }
+
+        $domAttributes = $this->domAttributesToArray($this->current->element->attributes);
+        $this->assertAssociativeArraysAreSimilar($attributes, $domAttributes, $exactAttributes);
+
         return $this;
     }
 
@@ -434,10 +418,14 @@ class ProgrammableVoiceRig
      * @param bool $exactAttributes
      * @return ProgrammableVoiceRig
      */
-    public function assertRedirect(string $uri, string $method = 'POST', bool $exactAttributes = false): self
+    public function assertRedirect(string $uri, ?string $method = null, bool $exactAttributes = false): self
     {
+        $expectedAttributes = $method || $exactAttributes
+            ? ['method' => $method ?? 'POST']
+            : null;
+        // warn that method defaults to POST if method=null&&exactAttributes=true
         return $this
-            ->assertNextElement('Redirect', ['method' => $method], $exactAttributes)
+            ->assertNextElement('Redirect', $expectedAttributes ?? [], $exactAttributes)
             ->assertTextContent($uri)
             ->navigate($this->current->text(), $this->current->attr('method', 'POST'));
     }
