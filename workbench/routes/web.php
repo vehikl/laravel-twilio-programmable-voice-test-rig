@@ -31,3 +31,5 @@ Route::post('/gather-speech/prompt', [GatherSpeech::class, 'prompt'])->name('gat
 Route::post('/gather-speech/result', [GatherSpeech::class, 'result'])->name('gather-speech.result');
 Route::post('/gather-speech/empty', [GatherSpeech::class, 'empty'])->name('gather-speech.empty');
 Route::post('/gather-speech/fail', [GatherSpeech::class, 'fail'])->name('gather-speech.fail');
+Route::post('/gather-speech/complete', [GatherSpeech::class, 'complete'])->name('gather-speech.complete');
+Route::post('/gather-speech/record-status', [GatherSpeech::class, 'record-status'])->name('gather-speech.recordStatus');

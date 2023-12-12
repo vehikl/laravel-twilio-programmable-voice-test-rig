@@ -2,6 +2,7 @@
 
 namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig;
 
+use Carbon\Carbon;
 use Closure;
 use DOMAttr;
 use DOMDocument;
@@ -9,6 +10,7 @@ use DOMElement;
 use DOMNamedNodeMap;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as IlluminateResponse;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -46,6 +48,11 @@ class ProgrammableVoiceRig
             'ApiVersion' => '2010-04-01',
             'Direction' => 'inbound',
         ];
+    }
+
+    public function parameter(string $key, mixed $fallback = null): mixed
+    {
+        return $this->parameters[$key] ?? $fallback;
     }
 
     private function wrapPhoneNumber(PhoneNumber|string $phoneNumber): PhoneNumber
@@ -110,17 +117,24 @@ class ProgrammableVoiceRig
         return $xml->firstElementChild;
     }
 
+    public function hitStatusCallback(string $method, string $endpoint, array $payload): void
+    {
+        $request = $this->makeRequest($endpoint, $method, $payload);
+        $response = $this->getResponse($request);
+        // Do something for assertions?
+    }
+
     /**
      * @param array<string,mixed> $body
      */
     public function navigate(string $url, string $method, array $body = []): self
     {
         $parameters = [...$this->parameters, ...$body];
-        $request = $this->makeRequest($url, $method, $parameters);
+        $request = $this->makeRequest($url, $method, $parameters, ['Accept' => 'application/xml']);
         $this->response = $this->getResponse($request);
 
         if ($this->response->getStatusCode() >= 500 && $this->twimlApp->fallbackUrl) {
-            $request = $this->makeRequest($this->twimlApp->fallbackUrl, $this->twimlApp->fallbackMethod, [...$this->parameters, ...$body]);
+            $request = $this->makeRequest($this->twimlApp->fallbackUrl, $this->twimlApp->fallbackMethod, [...$this->parameters, ...$body], ['Accept' => 'application/xml']);
             $this->response = $this->getResponse($request);
         }
 
@@ -130,6 +144,14 @@ class ProgrammableVoiceRig
                 $method,
                 $body,
                 $this->initializeFromDocument($this->response->getContent()),
+            );
+        } else {
+            Assert::fail(
+                sprintf(
+                    "Attempted to navigate to %s %s, but the response was http status %d\n%s",
+                    $method, $url, $this->response->getStatusCode(),
+                    '<content>' ?? $this->response->getContent()
+                )
             );
         }
 
@@ -153,11 +175,12 @@ class ProgrammableVoiceRig
     /**
      * @param array<string,mixed> $body
      */
-    private function makeRequest(string $url, string $method, array $body = []): Request
+    private function makeRequest(string $url, string $method, array $body = [], array $headers = []): Request
     {
         $parameters = [...$this->parameters, ...$body];
 
-        return Request::create($url, $method, $parameters);
+
+        return Request::create($url, $method, $parameters, server: $headers);
     }
 
 
@@ -189,7 +212,7 @@ class ProgrammableVoiceRig
         return $this;
     }
 
-    public function setCallStatus(CallStatus $callStatus): self
+    public function setCallStatus(CallStatus $callStatus, ?int $duration = null, ?string $recordingUrl = null, ?string $recordingSid = null, ?int $recordingDuration = null): self
     {
         if ($this->parameters['CallStatus'] == $callStatus->value) {
             return $this;
@@ -199,10 +222,27 @@ class ProgrammableVoiceRig
 
 
         if ($this->twimlApp?->statusCallbackUrl) {
-            $this->getResponse($this->makeRequest(
+            $durationData = $callStatus === CallStatus::completed && $duration != null
+                ? ['CallDuration' => $duration]
+                : [];
+            $recordingUrlData = $callStatus === CallStatus::completed && $recordingUrl
+                ? ['RecordingUrl' => $recordingUrl, 'RecordingSid' => $recordingSid ?? 'RE' . fake()->uuid, 'RecordingDuration' => $recordingDuration ?? $duration ?? 1]
+                : [];
+
+            $this->hitStatusCallback(
+                $this->twimlApp->statusCallbackMethod,
                 $this->twimlApp->statusCallbackUrl,
-                $this->twimlApp->statusCallbackMethod
-            ));
+                [
+                    'CallSid' => $this->parameters['CallSid'],
+                    // ParentCallSid?
+                    'CallStatus' => $this->parameters['CallStatus'],
+                    ...$durationData,
+                    ...$recordingUrlData,
+                    'Timestamp' => Carbon::now()->toRfc2822String(),
+                    'CallbackSource' => 'call-progress-events',
+                    'SequenceNumber' => 0,
+                ],
+            );
         }
 
         return $this;
@@ -351,7 +391,7 @@ class ProgrammableVoiceRig
 
     public function assertTextContent(string $body): self
     {
-        Assert::assertEquals($body, $this->current?->element?->textContent);
+        Assert::assertEquals($body, $this->current?->element?->textContent, sprintf("Expected: %s\nReceived: %s", $body, $this->current?->element?->textContent));
         return $this;
     }
 
@@ -466,8 +506,11 @@ class ProgrammableVoiceRig
 
     public function assertEndpoint(string $uri, string $method = 'POST'): self
     {
-        Assert::assertEquals($uri, $this->requestedUri, sprintf('Expected endpoint to be %s, but it was %s', $uri, $this->requestedUri));
-        Assert::assertEquals($method, $this->requestedMethod, sprintf('Expected endpoint method to be %s, but it was %s', $method, $this->requestedMethod));
-        return $this;
+        $methodMatch = strtolower($method) == strtolower($this->requestedMethod);
+        $uriMatch = $uri == $this->requestedUri;
+        if ($methodMatch && $uriMatch) {
+            return $this;
+        }
+        Assert::fail(sprintf("Twilio http redirection\nExpected: %s %s\nReceived: %s %s", $method, $uri, $this->requestedMethod, $this->requestedUri));
     }
 }

@@ -2,11 +2,18 @@
 
 namespace Workbench\App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Twilio\TwiML\VoiceResponse;
 
 class GatherSpeech
 {
+    const EXTENSIONS = [
+        '001#' => 'The CEO',
+        '002#' => 'The Manager',
+        '003#' => 'The Secretary',
+    ];
+
     private VoiceResponse $response;
 
     public function __construct()
@@ -18,12 +25,12 @@ class GatherSpeech
     {
         $gather = $this->response->gather([
             'action' => route('gather-speech.result'),
-            'input' => 'speech',
+            'input' => 'dtmf speech',
             'timeout' => 6,
             'actionOnEmptyResult' => false,
         ]);
 
-        $gather->say('Say the name of the person you would like to be connected to');
+        $gather->say('Type the extension followed by the pound symbol or say the name of the person you would like to be connected to');
         $gather->pause(['length' => 3]);
         $gather->say('If you are not sure, say directory');
 
@@ -34,14 +41,25 @@ class GatherSpeech
 
     public function result(Request $request): VoiceResponse
     {
-        if ((float)$request->input('Confidence', 0.4) < 0.5) {
+        if ($request->has('SpeechResult') && (float)$request->input('Confidence', 0.4) < 0.5) {
             $this->response->redirect(route('gather-speech.empty'));
             return $this->response;
         }
 
-        $this->response->say('You will be directed to ' . $request->input('SpeechResult', 'nobody in particular'));
-        $this->response->dial('15554443322');
-        $this->response->hangup();
+        $digits = $request->input('Digits', '003#');
+        $extension = isset(self::EXTENSIONS[$digits]) ? $digits: '003#';
+
+        $target = $request->has('SpeechResult')
+            ? $request->input('SpeechResult', self::EXTENSIONS[$extension])
+            : self::EXTENSIONS[$extension];
+
+        $this->response->say('You will be directed to ' . $target);
+        $this->response->dial('15554443322', [
+            'action' => route('gather-speech.complete'),
+            'record' => 'record-from-answer',
+            'recordStatusCallbackEvent' => 'complete',
+            'recordStatusCallback' => route('gather-speech.recordStatus'),
+        ]);
 
         return $this->response;
     }
@@ -60,5 +78,17 @@ class GatherSpeech
         $this->response->hangup();
 
         return $this->response;
+    }
+
+    public function complete(Request $request): VoiceResponse
+    {
+        $this->response->hangup();
+
+        return $this->response;
+    }
+
+    public function recordStatus(Request $request): JsonResponse
+    {
+        return new JsonResponse([], JsonResponse::HTTP_NO_CONTENT);
     }
 }
