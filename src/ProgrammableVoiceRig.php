@@ -10,7 +10,6 @@ use DOMElement;
 use DOMNamedNodeMap;
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response as IlluminateResponse;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
