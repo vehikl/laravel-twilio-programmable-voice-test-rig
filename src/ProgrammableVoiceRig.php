@@ -150,7 +150,7 @@ class ProgrammableVoiceRig
                 sprintf(
                     "Attempted to navigate to %s %s, but the response was http status %d\n%s",
                     $method, $url, $this->response->getStatusCode(),
-                    '<content>' ?? $this->response->getContent()
+                    $this->response->getContent() ?? '<content>'
                 )
             );
         }
