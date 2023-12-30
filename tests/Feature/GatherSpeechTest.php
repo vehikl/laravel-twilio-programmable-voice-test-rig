@@ -86,4 +86,30 @@ class GatherSpeechTest extends TestCase
             ->assertHangup()
             ->assertCallEnded();
     }
+
+    /**
+     * @test
+     */
+    public function itPrefersDigitsOverSpeech(): void
+    {
+        
+        (new ProgrammableVoiceRig(app: $this->app))
+            ->from('15554443322')
+            ->to('19998887766')
+            ->phoneCall(endpoint: route('gather-speech.prompt'))
+
+            ->assertGather([
+                'action' => route('gather-speech.result'),
+            ])
+            ->withSpeech(speechResult: 'Test', confidence: 1.0, digits: '003#')
+
+            ->assertEndpoint(route('gather-speech.result'))
+            ->assertSay('You will be directed to ' . GatherSpeech::EXTENSIONS['003#'])
+            ->assertDial('15554443322')
+            ->withAnswer()
+
+            ->assertEndpoint(route('gather-speech.complete'))
+            ->assertHangup()
+            ->assertCallEnded();
+    }
 }

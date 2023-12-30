@@ -41,18 +41,18 @@ class GatherSpeech
 
     public function result(Request $request): VoiceResponse
     {
-        if ($request->has('SpeechResult') && (float)$request->input('Confidence', 0.4) < 0.5) {
+        $response = $this->resultGetTargetUsingDigits($request)
+            ?? $this->resultGetTargetUsingSpeech($request);
+
+        if (!$response) {
             $this->response->redirect(route('gather-speech.empty'));
             return $this->response;
         }
+        return $response;
+    }
 
-        $digits = $request->input('Digits', '003#');
-        $extension = isset(self::EXTENSIONS[$digits]) ? $digits: '003#';
-
-        $target = $request->has('SpeechResult')
-            ? $request->input('SpeechResult', self::EXTENSIONS[$extension])
-            : self::EXTENSIONS[$extension];
-
+    private function resultDialTarget(string $target): VoiceResponse
+    {
         $this->response->say('You will be directed to ' . $target);
         $this->response->dial('15554443322', [
             'action' => route('gather-speech.complete'),
@@ -62,6 +62,39 @@ class GatherSpeech
         ]);
 
         return $this->response;
+    }
+
+    private function resultGetTargetUsingDigits(Request $request): ?VoiceResponse
+    {
+        if (!$request->has('Digits')) {
+            return null;
+        }
+        $digits = $request->input('Digits');
+
+        if ($digits === 'hangup') {
+            $this->response->hangup();
+            return $this->response;
+        }
+
+        if (!isset(self::EXTENSIONS[$digits])) {
+            return null;
+        }
+
+        return $this->resultDialTarget(self::EXTENSIONS[$digits]);
+    }
+
+    private function resultGetTargetUsingSpeech(Request $request): ?VoiceResponse
+    {
+        if (!$request->has('SpeechResult')) {
+            return null;
+        }
+
+        if ((float)$request->input('Confidence', 0.0) < 0.5) {
+            $this->response->redirect(route('gather-speech.empty'));
+            return $this->response;
+        }
+
+        return $this->resultDialTarget($request->input('SpeechResult'));
     }
 
     public function empty(): VoiceResponse
