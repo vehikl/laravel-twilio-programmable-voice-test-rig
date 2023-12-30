@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use PHPUnit\Framework\Assert;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
+use Twilio\TwiML\VoiceResponse;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\DialEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\GatherEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\RecordingEvent;
@@ -274,6 +275,17 @@ class ProgrammableVoiceRig
             $this->twimlApp->requestUrl,
             $this->twimlApp->requestMethod,
         );
+    }
+
+    public function fromTwiml(string|VoiceResponse $twiml): self
+    {
+        return $this->navigatedTo(
+            '',
+            '',
+            [],
+            $this->initializeFromDocument((string)$twiml),
+        );
+        return $this;
     }
 
     /**
