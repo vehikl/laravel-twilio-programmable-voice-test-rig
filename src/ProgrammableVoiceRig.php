@@ -117,6 +117,9 @@ class ProgrammableVoiceRig
         return $xml->firstElementChild;
     }
 
+    /**
+     * @param array<string,mixed> $payload
+     */
     public function hitStatusCallback(string $method, string $endpoint, array $payload): void
     {
         $request = $this->makeRequest($endpoint, $method, $payload);
@@ -174,6 +177,7 @@ class ProgrammableVoiceRig
 
     /**
      * @param array<string,mixed> $body
+     * @param array<string,mixed> $headers
      */
     private function makeRequest(string $url, string $method, array $body = [], array $headers = []): Request
     {
