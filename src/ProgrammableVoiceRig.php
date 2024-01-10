@@ -15,8 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 use Twilio\TwiML\VoiceResponse;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\DialEvent;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\Event;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\GatherEvent;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\RecordingEvent;
+use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\RecordEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 
 class ProgrammableVoiceRig
@@ -42,7 +43,7 @@ class ProgrammableVoiceRig
     public function __construct(protected Application $app, ?string $accountSid = null, ?string $callSid = null)
     {
         $this->parameters = [
-            'AccountSid' => $accountSid ?? sprintf('AC%s', fake()->uuid),
+            'AccountSid' => $accountSid ?? config('twilio.account_sid') ?? sprintf('AC%s', fake()->uuid),
             'CallSid' => $callSid ?? sprintf('CA%s', fake()->uuid),
             'CallStatus' => CallStatus::ringing->value,
             'ApiVersion' => '2010-04-01',
@@ -191,6 +192,14 @@ class ProgrammableVoiceRig
     private function getResponse(Request $request): Response
     {
         return $this->app->handle($request);
+    }
+
+    public function skipUntilActionableTag(): self
+    {
+        while ($this->current && !isset(Event::MAP[$this->current->nextElement()?->tagName ?? ''])) {
+            $this->advanceTwiml();
+        }
+        return $this;
     }
 
     public function assertSuccessful(): self
@@ -459,7 +468,7 @@ class ProgrammableVoiceRig
      */
     public function assertDial(string $phoneNumber, array $attributes = [], bool $exactAttributes = false): DialEvent
     {
-        return new DialEvent(
+        return Event::fromElement(
             $this
                 ->assertNextElement('Dial', $attributes, $exactAttributes)
                 ->assertTextContent($phoneNumber),
@@ -490,7 +499,7 @@ class ProgrammableVoiceRig
      */
     public function assertGather(array $attributes = [], bool $exactAttributes = false): GatherEvent
     {
-        return new GatherEvent(
+        return Event::fromElement(
             $this->assertNextElement('Gather', $attributes, $exactAttributes),
             $this->current,
         );
@@ -499,9 +508,9 @@ class ProgrammableVoiceRig
     /**
      * @param array<string,mixed> $attributes
      */
-    public function assertRecord(array $attributes = [], bool $exactAttributes = false): RecordingEvent
+    public function assertRecord(array $attributes = [], bool $exactAttributes = false): RecordEvent
     {
-        return new RecordingEvent(
+        return Event::fromElement(
             $this->assertNextElement('Record', $attributes, $exactAttributes),
             $this->current,
         );
