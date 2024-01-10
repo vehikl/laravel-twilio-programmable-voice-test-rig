@@ -4,7 +4,7 @@ namespace Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events;
 
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
 
-class RecordingEvent extends Event
+class RecordEvent extends Event
 {
     public function withAudio(string $recordingUrl, int $recordingDuration, ?string $digits = null): ProgrammableVoiceRig
     {
