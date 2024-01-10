@@ -4,11 +4,8 @@ namespace Tests\Unit\Events;
 
 use DOMDocument;
 use DOMElement;
-use Mockery;
 use Mockery\MockInterface;
 use Tests\TestCase;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\CallStatus;
-use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\DialEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Events\RecordEvent;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\Handlers\Element;
 use Vehikl\LaravelTwilioProgrammableVoiceTestRig\ProgrammableVoiceRig;
